@@ -4,8 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import { cloneSeed } from "@/data/seed-model";
 import { createClient } from "@/lib/supabase/client";
 import { slugify } from "@/lib/id";
+import { isPlanningModel } from "@/lib/sync";
 import { mapProject, type ProjectRow } from "@/lib/projects";
-import type { PlanningProject } from "@/lib/types";
+import type { PlanningModel, PlanningProject } from "@/lib/types";
 
 const LIST_COLUMNS =
   "id, slug, name, owner_id, is_public, created_at, updated_at, model";
@@ -14,9 +15,10 @@ async function insertProject(
   supabase: NonNullable<ReturnType<typeof createClient>>,
   userId: string,
   name: string,
+  source?: PlanningModel,
 ) {
   const base = slugify(name);
-  const model = cloneSeed();
+  const model = source ? structuredClone(source) : cloneSeed();
   model.title = name;
 
   for (let attempt = 0; attempt < 8; attempt += 1) {
@@ -115,6 +117,36 @@ export function useProjects() {
     [reload],
   );
 
+  const duplicateProject = useCallback(
+    async (id: string, name: string) => {
+      const supabase = createClient();
+      if (!supabase) throw new Error("Supabase is not configured.");
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("Sign in to duplicate a project.");
+      const { data, error: loadError } = await supabase
+        .from("planning_projects")
+        .select("model")
+        .eq("id", id)
+        .eq("owner_id", user.id)
+        .single();
+      if (loadError) throw new Error(loadError.message);
+      if (!isPlanningModel(data?.model)) {
+        throw new Error("That project has no planning data to copy.");
+      }
+      const slug = await insertProject(
+        supabase,
+        user.id,
+        name.trim(),
+        data.model,
+      );
+      await reload();
+      return slug;
+    },
+    [reload],
+  );
+
   return {
     projects,
     userEmail,
@@ -122,6 +154,7 @@ export function useProjects() {
     error,
     createProject,
     deleteProject,
+    duplicateProject,
     reload,
   };
 }

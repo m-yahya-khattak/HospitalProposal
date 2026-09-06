@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useProjects } from "@/hooks/use-projects";
 import { formatInt } from "@/lib/format";
-import { FolderPlus, Trash2, X } from "lucide-react";
+import { FolderPlus, Copy, Trash2, X } from "lucide-react";
 
 function formatUpdated(value: string) {
   const date = new Date(value);
@@ -24,11 +24,12 @@ export function ProjectPanel({
   onClose: () => void;
   currentSlug?: string;
 }) {
-  const { projects, hydrated, error, createProject, deleteProject } =
+  const { projects, hydrated, error, createProject, deleteProject, duplicateProject } =
     useProjects();
   const router = useRouter();
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [copyingId, setCopyingId] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -49,6 +50,48 @@ export function ProjectPanel({
     } finally {
       setPending(false);
     }
+  };
+
+  const onDuplicate = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed || !copyingId) return;
+    setPending(true);
+    setFormError(null);
+    try {
+      const slug = await duplicateProject(copyingId, trimmed);
+      setName("");
+      setCopyingId(null);
+      onClose();
+      router.push(`/control/${slug}`);
+    } catch (err) {
+      setFormError(
+        err instanceof Error ? err.message : "Could not duplicate project",
+      );
+    } finally {
+      setPending(false);
+    }
+  };
+
+  const startCreate = () => {
+    setCreating(true);
+    setCopyingId(null);
+    setName("");
+    setFormError(null);
+  };
+
+  const startDuplicate = (id: string, projectName: string) => {
+    setCopyingId(id);
+    setCreating(false);
+    setName(`${projectName} copy`);
+    setFormError(null);
+  };
+
+  const cancelForm = () => {
+    setCreating(false);
+    setCopyingId(null);
+    setName("");
+    setFormError(null);
   };
 
   if (!open) return null;
@@ -79,7 +122,7 @@ export function ProjectPanel({
             <p className="mb-3 text-sm text-destructive">{error}</p>
           ) : null}
 
-          <Button className="w-full" onClick={() => setCreating(true)}>
+          <Button className="w-full" onClick={startCreate}>
             <FolderPlus data-icon="inline-start" />
             New project
           </Button>
@@ -105,14 +148,34 @@ export function ProjectPanel({
                 <Button type="submit" disabled={pending}>
                   {pending ? "Creating…" : "Create"}
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setCreating(false);
-                    setFormError(null);
-                  }}
-                >
+                <Button type="button" variant="outline" onClick={cancelForm}>
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          ) : null}
+
+          {copyingId ? (
+            <form className="mt-4 grid gap-3 rounded-xl bg-stone-50 p-3" onSubmit={onDuplicate}>
+              <div>
+                <Label htmlFor="panel-copy-name">Copy as</Label>
+                <Input
+                  id="panel-copy-name"
+                  className="mt-1 h-10"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  required
+                  autoFocus
+                />
+              </div>
+              {formError ? (
+                <p className="text-sm text-destructive">{formError}</p>
+              ) : null}
+              <div className="flex gap-2">
+                <Button type="submit" disabled={pending}>
+                  {pending ? "Duplicating…" : "Duplicate"}
+                </Button>
+                <Button type="button" variant="outline" onClick={cancelForm}>
                   Cancel
                 </Button>
               </div>
@@ -154,7 +217,15 @@ export function ProjectPanel({
                         {formatUpdated(project.updatedAt)}
                       </p>
                     </button>
-                    <div className="mt-2 flex justify-end">
+                    <div className="mt-2 flex justify-end gap-1">
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        onClick={() => startDuplicate(project.id, project.name)}
+                      >
+                        <Copy data-icon="inline-start" />
+                        Duplicate
+                      </Button>
                       <Button
                         size="xs"
                         variant="ghost"
