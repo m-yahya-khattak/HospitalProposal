@@ -154,7 +154,7 @@ function ProposalBody({
             {live ? (
               <Badge className="bg-teal-700 text-white">Live</Badge>
             ) : (
-              <Badge variant="outline">Master defaults</Badge>
+              <Badge variant="outline">Connecting</Badge>
             )}
           </div>
         </header>

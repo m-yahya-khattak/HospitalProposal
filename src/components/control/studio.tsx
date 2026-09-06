@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { CapacityTab } from "@/components/control/capacity-tab";
 import { CapexTab } from "@/components/control/capex-tab";
 import { CatalogTab } from "@/components/control/catalog-tab";
@@ -9,14 +10,24 @@ import { KpiStrip } from "@/components/control/kpi-strip";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePlanningModel } from "@/hooks/use-planning-model";
-import { ExternalLink, RotateCcw } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { ExternalLink, LogOut, RotateCcw } from "lucide-react";
 
 export function Studio() {
-  const { model, result, setModel, reset, live } = usePlanningModel();
+  const { model, result, setModel, reset, live, userEmail, persistError } =
+    usePlanningModel();
   const [tab, setTab] = useState("capacity");
+  const router = useRouter();
 
   const openDisplay = () => {
     window.open("/", "hospital-display");
+  };
+
+  const signOut = async () => {
+    const supabase = createClient();
+    await supabase?.auth.signOut();
+    router.push("/login");
+    router.refresh();
   };
 
   return (
@@ -29,7 +40,12 @@ export function Studio() {
             </p>
             <h1 className="font-heading text-2xl tracking-tight">Control studio</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {userEmail ? (
+              <span className="hidden text-xs text-muted-foreground sm:inline">
+                {userEmail}
+              </span>
+            ) : null}
             <span
               className={`rounded-full px-2.5 py-1 text-xs ${
                 live
@@ -37,14 +53,14 @@ export function Studio() {
                   : "bg-stone-100 text-muted-foreground"
               }`}
             >
-              {live ? "Display connected" : "Open Display on the projector"}
+              {live ? "Live from database" : "Connecting…"}
             </span>
             <Button
               variant="outline"
               onClick={() => {
                 if (
                   window.confirm(
-                    "Restore the master planning sheet? Current edits in this browser will be replaced.",
+                    "Restore the master planning sheet? This replaces the shared plan in the database for everyone.",
                   )
                 ) {
                   reset();
@@ -58,8 +74,17 @@ export function Studio() {
               <ExternalLink data-icon="inline-start" />
               Open display
             </Button>
+            <Button variant="outline" onClick={() => void signOut()}>
+              <LogOut data-icon="inline-start" />
+              Sign out
+            </Button>
           </div>
         </div>
+        {persistError ? (
+          <p className="border-t bg-red-50 px-4 py-2 text-sm text-destructive lg:px-6">
+            Could not save to Supabase: {persistError}
+          </p>
+        ) : null}
         <KpiStrip result={result} />
       </header>
 
