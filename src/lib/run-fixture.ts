@@ -55,9 +55,40 @@ if (evaluate(legacy).capex.totalPremium !== result.capex.totalPremium) {
   console.error("Legacy fxRate still changes CAPEX totals");
   process.exit(1);
 }
-const bomLines = result.capex.lines.filter((line) => line.fromBom);
-if (bomLines.length !== 1 || bomLines[0].id !== "medical-equipment") {
-  console.error("Only medical-equipment should use catalog totals");
+const bomLines = result.capex.lines.filter((line) => line.kind === "catalog");
+if (bomLines.length < 5) {
+  console.error("Expected catalog categories in CAPEX");
+  process.exit(1);
+}
+if (
+  Math.abs(
+    result.capex.totalPremium -
+      (result.capex.constructionPremium + result.capex.catalogPremium),
+  ) > 0.01
+) {
+  console.error("CAPEX total should be construction + catalog");
+  process.exit(1);
+}
+const withoutFurniture = evaluate({
+  ...seedModel,
+  capex: { ...seedModel.capex, excludedCategories: ["furniture"] },
+});
+if (withoutFurniture.capex.totalPremium >= result.capex.totalPremium) {
+  console.error("Excluding furniture should reduce CAPEX");
+  process.exit(1);
+}
+const stripped = normalizePlanningModel({
+  ...seedModel,
+  capex: {
+    ...seedModel.capex,
+    lines: [
+      ...seedModel.capex.lines,
+      { id: "medical-equipment", name: "Medical Equipment", ratePerSqft: 0 },
+    ],
+  },
+});
+if (stripped.capex.lines.some((line) => line.id === "medical-equipment")) {
+  console.error("Legacy medical-equipment line should be removed");
   process.exit(1);
 }
 if (!Number.isFinite(result.capex.totalPremium) || result.capex.totalPremium <= 0) {

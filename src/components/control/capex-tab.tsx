@@ -3,6 +3,7 @@
 import { NumberInput } from "@/components/control/number-input";
 import { useMoney } from "@/components/currency-provider";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -11,9 +12,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { BOM_CAPEX_LINE_ID, bedsFromArea, scaleHospitalBeds } from "@/lib/engine";
+import { bedsFromArea, scaleHospitalBeds } from "@/lib/engine";
 import { BASE_CURRENCY } from "@/lib/currency";
-import { formatInt } from "@/lib/format";
+import { categoryLabel, formatInt, modelCategories } from "@/lib/format";
 import type { Evaluation, PlanningModel } from "@/lib/types";
 
 type Props = {
@@ -29,16 +30,25 @@ export function CapexTab({ model, result, onChange }: Props) {
     fn(next);
     onChange(next);
   };
+  const excluded = new Set(model.capex.excludedCategories ?? []);
+  const categories = modelCategories(model);
+  const construction = result.capex.lines.filter((line) => line.kind === "construction");
+  const catalog = result.capex.lines.filter((line) => line.kind === "catalog");
+
+  const setCategoryInCapex = (id: string, on: boolean) => {
+    patch((m) => {
+      const next = new Set(m.capex.excludedCategories ?? []);
+      if (on) next.delete(id);
+      else next.add(id);
+      m.capex.excludedCategories = [...next];
+    });
+  };
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_1fr]">
       <section className="space-y-6">
         <div>
           <h2 className="text-xl font-medium tracking-tight">Area & rates</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Construction is rate × area ({BASE_CURRENCY}). Medical equipment
-            follows the catalog.
-          </p>
         </div>
 
         <div className="overflow-hidden rounded-xl ring-1 ring-foreground/10">
@@ -93,22 +103,42 @@ export function CapexTab({ model, result, onChange }: Props) {
                 <TableRow key={line.id}>
                   <TableCell>{line.name}</TableCell>
                   <TableCell>
-                    {line.id === BOM_CAPEX_LINE_ID ? (
-                      <span className="text-xs text-muted-foreground">
-                        Catalog
-                      </span>
-                    ) : (
-                      <NumberInput
-                        value={line.ratePerSqft}
-                        min={0}
-                        suffix={BASE_CURRENCY}
-                        onChange={(v) =>
-                          patch((m) => {
-                            m.capex.lines[index].ratePerSqft = v;
-                          })
-                        }
-                      />
-                    )}
+                    <NumberInput
+                      value={line.ratePerSqft}
+                      min={0}
+                      suffix={BASE_CURRENCY}
+                      onChange={(v) =>
+                        patch((m) => {
+                          m.capex.lines[index].ratePerSqft = v;
+                        })
+                      }
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+
+        <div className="overflow-hidden rounded-xl ring-1 ring-foreground/10">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Catalog in CAPEX</TableHead>
+                <TableHead className="text-right">On</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {categories.map((id) => (
+                <TableRow key={id}>
+                  <TableCell>{categoryLabel(id, model.categoryLabels)}</TableCell>
+                  <TableCell className="text-right">
+                    <Switch
+                      checked={!excluded.has(id)}
+                      onCheckedChange={(checked) =>
+                        setCategoryInCapex(id, Boolean(checked))
+                      }
+                    />
                   </TableCell>
                 </TableRow>
               ))}
@@ -165,14 +195,29 @@ export function CapexTab({ model, result, onChange }: Props) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {result.capex.lines.map((line) => (
+              {construction.map((line) => (
                 <TableRow key={line.id}>
-                  <TableCell>
-                    {line.name}
-                    {line.id === BOM_CAPEX_LINE_ID ? (
-                      <span className="ml-2 text-xs text-teal-800">Catalog</span>
-                    ) : null}
+                  <TableCell>{line.name}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">
+                    {money.format(line.premium)}
                   </TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">
+                    {money.format(line.budget)}
+                  </TableCell>
+                </TableRow>
+              ))}
+              <TableRow className="font-medium">
+                <TableCell>Construction</TableCell>
+                <TableCell className="text-right font-mono">
+                  {money.format(result.capex.constructionPremium)}
+                </TableCell>
+                <TableCell className="text-right font-mono">
+                  {money.format(result.capex.constructionBudget)}
+                </TableCell>
+              </TableRow>
+              {catalog.map((line) => (
+                <TableRow key={line.id}>
+                  <TableCell>{line.name}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums">
                     {money.format(line.premium)}
                   </TableCell>

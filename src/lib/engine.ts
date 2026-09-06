@@ -1,4 +1,4 @@
-import { modelCategories } from "@/lib/format";
+import { categoryLabel, modelCategories } from "@/lib/format";
 import type {
   CapexLineResult,
   CatalogItem,
@@ -321,21 +321,30 @@ export function evaluate(model: PlanningModel): Evaluation {
   const sqftPerBed = interpolateSqft(model.totalBeds, model.capex.areaBands);
   const areaSqft = model.totalBeds * sqftPerBed;
 
-  const capexLines: CapexLineResult[] = model.capex.lines.map((line) => {
-    const fromBom = line.id === BOM_CAPEX_LINE_ID;
-    const premium = fromBom ? bomPremium : areaSqft * line.ratePerSqft;
-    const budget = fromBom ? bomBudget : areaSqft * line.ratePerSqft;
-    return {
+  const constructionLines: CapexLineResult[] = model.capex.lines
+    .filter((line) => line.id !== BOM_CAPEX_LINE_ID)
+    .map((line) => ({
       id: line.id,
       name: line.name,
-      fromBom,
-      premium,
-      budget,
-    };
-  });
-
-  const totalPremium = capexLines.reduce((s, l) => s + l.premium, 0);
-  const totalBudget = capexLines.reduce((s, l) => s + l.budget, 0);
+      kind: "construction",
+      premium: areaSqft * line.ratePerSqft,
+      budget: areaSqft * line.ratePerSqft,
+    }));
+  const excluded = new Set(model.capex.excludedCategories ?? []);
+  const catalogLines: CapexLineResult[] = categoryRollup
+    .filter((row) => !excluded.has(row.id))
+    .map((row) => ({
+      id: `catalog:${row.id}`,
+      name: categoryLabel(row.id, model.categoryLabels),
+      kind: "catalog",
+      premium: row.premium,
+      budget: row.budget,
+    }));
+  const capexLines = [...constructionLines, ...catalogLines];
+  const constructionPremium = constructionLines.reduce((s, l) => s + l.premium, 0);
+  const constructionBudget = constructionLines.reduce((s, l) => s + l.budget, 0);
+  const catalogPremium = catalogLines.reduce((s, l) => s + l.premium, 0);
+  const catalogBudget = catalogLines.reduce((s, l) => s + l.budget, 0);
 
   const ot = roundQty(otRaw);
   const minorOt = roundQty(minorOtRaw);
@@ -368,8 +377,12 @@ export function evaluate(model: PlanningModel): Evaluation {
     areaSqft,
     capex: {
       lines: capexLines,
-      totalPremium,
-      totalBudget,
+      constructionPremium,
+      constructionBudget,
+      catalogPremium,
+      catalogBudget,
+      totalPremium: constructionPremium + catalogPremium,
+      totalBudget: constructionBudget + catalogBudget,
     },
   };
 }

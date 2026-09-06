@@ -107,11 +107,13 @@ function ProposalBody({
   live,
   title,
   specialtyNames,
+  landExcluded,
 }: {
   result: Evaluation;
   live: boolean;
   title: string;
   specialtyNames: string[];
+  landExcluded: boolean;
 }) {
   const money = useMoney();
   const shown = (usd: number) =>
@@ -213,7 +215,7 @@ function ProposalBody({
                 {money.format(result.capex.totalPremium)}
               </p>
               <p className="mt-2 text-sm text-stone-500">
-                Equipment BOM {money.format(result.bomPremium)}
+                Catalog {money.format(result.capex.catalogPremium)}
               </p>
             </div>
             <div className="rounded-2xl bg-white p-8 ring-1 ring-stone-200">
@@ -224,7 +226,7 @@ function ProposalBody({
                 {money.format(result.capex.totalBudget)}
               </p>
               <p className="mt-2 text-sm text-stone-500">
-                Equipment BOM {money.format(result.bomBudget)}
+                Catalog {money.format(result.capex.catalogBudget)}
               </p>
             </div>
           </div>
@@ -414,9 +416,11 @@ function ProposalBody({
             </ResponsiveContainer>
           </div>
           <p className="mt-4 text-sm text-stone-500">
-            Totals {money.format(result.capex.totalPremium)} premium /{" "}
-            {money.format(result.capex.totalBudget)} budgetary. Medical
-            equipment follows the bill of quantities. Land is excluded.
+            Construction {money.format(result.capex.constructionPremium)} ·
+            catalog {money.format(result.capex.catalogPremium)} · total{" "}
+            {money.format(result.capex.totalPremium)} premium /{" "}
+            {money.format(result.capex.totalBudget)} budgetary.
+            {landExcluded ? " Land excluded." : ""}
           </p>
         </Section>
 
@@ -514,6 +518,7 @@ export function Proposal({ slug }: { slug: string }) {
         live={live}
         title={model.title}
         specialtyNames={model.specialties.filter((s) => s.enabled).map((s) => s.name)}
+        landExcluded={model.capex.landExcluded}
       />
     </CurrencyProvider>
   );

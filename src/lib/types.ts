@@ -65,13 +65,14 @@ export type CapexLine = {
   id: string;
   name: string;
   ratePerSqft: number;
-  fromBom?: boolean;
 };
 
 export type CapexConfig = {
   areaBands: AreaBand[];
   lines: CapexLine[];
   landExcluded: boolean;
+  /** Category ids left out of CAPEX. Missing = all categories included. */
+  excludedCategories?: string[];
 };
 
 /** Display FX only. Saved money is always USD. */
@@ -137,7 +138,7 @@ export type ItemResult = {
 export type CapexLineResult = {
   id: string;
   name: string;
-  fromBom: boolean;
+  kind: "construction" | "catalog";
   premium: number;
   budget: number;
 };
@@ -174,9 +175,13 @@ export type Evaluation = {
   bomBudget: number;
   sqftPerBed: number;
   areaSqft: number;
-  capex: {
-    lines: CapexLineResult[];
-    totalPremium: number;
-    totalBudget: number;
-  };
+    capex: {
+      lines: CapexLineResult[];
+      constructionPremium: number;
+      constructionBudget: number;
+      catalogPremium: number;
+      catalogBudget: number;
+      totalPremium: number;
+      totalBudget: number;
+    };
 };

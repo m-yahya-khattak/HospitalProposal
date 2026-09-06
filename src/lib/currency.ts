@@ -1,4 +1,5 @@
 import { BOM_CAPEX_LINE_ID } from "@/lib/engine";
+import { modelCategories } from "@/lib/format";
 import type { FxSettings, PlanningModel } from "@/lib/types";
 
 export const BASE_CURRENCY = "USD";
@@ -63,9 +64,13 @@ export function normalizePlanningModel(model: PlanningModel): PlanningModel {
   const capex = next.capex as PlanningModel["capex"] & { fxRate?: number };
   delete capex.fxRate;
   next.fx = normalizeFx(next.fx);
-  for (const line of next.capex.lines) {
-    line.fromBom = line.id === BOM_CAPEX_LINE_ID;
-  }
+  next.capex.lines = next.capex.lines
+    .filter((line) => line.id !== BOM_CAPEX_LINE_ID)
+    .map(({ id, name, ratePerSqft }) => ({ id, name, ratePerSqft }));
+  const known = new Set(modelCategories(next));
+  next.capex.excludedCategories = (next.capex.excludedCategories ?? []).filter(
+    (id) => known.has(id),
+  );
   return next;
 }
 

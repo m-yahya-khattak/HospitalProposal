@@ -365,12 +365,6 @@ export const seedModel: PlanningModel = {
       { id: "electrical", name: "Electrical", ratePerSqft: 500 },
       { id: "gases", name: "Medical Gases", ratePerSqft: 350 },
       { id: "hvac", name: "HVAC", ratePerSqft: 2500 },
-      {
-        id: "medical-equipment",
-        name: "Medical Equipment",
-        ratePerSqft: 0,
-        fromBom: true,
-      },
       { id: "power", name: "Power Generation", ratePerSqft: 280 },
       { id: "architecture", name: "Architectural Planning", ratePerSqft: 250 },
       { id: "incinerator", name: "Incinerator", ratePerSqft: 85 },
