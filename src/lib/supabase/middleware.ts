@@ -11,7 +11,7 @@ export async function updateSession(request: NextRequest) {
 
   let supabaseResponse = NextResponse.next({ request });
 
-  const supabase = createServerClient(env.url, env.anonKey, {
+  const supabase = createServerClient(env.url, env.publishableKey, {
     cookies: {
       getAll() {
         return request.cookies.getAll();

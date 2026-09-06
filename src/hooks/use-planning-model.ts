@@ -24,7 +24,7 @@ export function usePlanningModel() {
     supabaseRef.current = supabase;
     if (!supabase) {
       setPersistError(
-        "Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local.",
+        "Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY to .env.local.",
       );
       setHydrated(true);
       return;
