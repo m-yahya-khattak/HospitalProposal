@@ -60,9 +60,9 @@ function Kpi({
   hint?: string;
 }) {
   return (
-    <div className="min-w-0 border-t border-teal-800/20 pt-4">
+    <div className="min-w-0 overflow-hidden border-t border-teal-800/20 pt-4 pr-4">
       <p className="text-xs tracking-wide text-stone-500 uppercase">{label}</p>
-      <p className="mt-2 font-heading text-4xl leading-none tracking-tight text-stone-900 tabular-nums">
+      <p className="mt-2 font-heading text-2xl leading-tight tracking-tight text-stone-900 tabular-nums sm:text-3xl">
         {value}
         {unit ? (
           <span className="ml-1 text-base font-sans text-stone-500">{unit}</span>
@@ -153,13 +153,13 @@ function ProposalBody({
 
   return (
     <div className="min-h-dvh bg-[#f7f6f3] text-stone-900">
-      <div className="mx-auto max-w-6xl px-6 py-10 md:px-10 md:py-16">
+      <div className="w-full px-6 py-10 lg:px-12 lg:py-14">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-[11px] font-medium tracking-[0.22em] text-teal-800 uppercase">
               Project planning
             </p>
-            <h1 className="mt-3 max-w-3xl font-heading text-5xl leading-[1.05] tracking-tight md:text-6xl">
+            <h1 className="mt-3 font-heading text-5xl leading-[1.05] tracking-tight md:text-6xl">
               {title}
             </h1>
             <p className="mt-4 max-w-xl text-stone-600">
@@ -183,7 +183,7 @@ function ProposalBody({
           </div>
         </header>
 
-        <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <Kpi label="Planned beds" value={formatInt(result.totalBeds)} />
           <Kpi
             label="Theatres / procedure"
@@ -211,7 +211,7 @@ function ProposalBody({
               <p className="text-xs tracking-wide text-stone-500 uppercase">
                 Premium equipment + CAPEX
               </p>
-              <p className="mt-3 font-heading text-4xl tabular-nums">
+              <p className="mt-3 font-heading text-3xl tabular-nums tracking-tight sm:text-4xl">
                 {money.format(result.capex.totalPremium)}
               </p>
               <p className="mt-2 text-sm text-stone-500">
@@ -222,7 +222,7 @@ function ProposalBody({
               <p className="text-xs tracking-wide text-stone-500 uppercase">
                 Budgetary equipment + CAPEX
               </p>
-              <p className="mt-3 font-heading text-4xl tabular-nums">
+              <p className="mt-3 font-heading text-3xl tabular-nums tracking-tight sm:text-4xl">
                 {money.format(result.capex.totalBudget)}
               </p>
               <p className="mt-2 text-sm text-stone-500">
