@@ -95,7 +95,7 @@ export function FormulaMatrix({
                       {item.name}
                     </button>
                     <p className="truncate text-[11px] text-muted-foreground">
-                      {categoryLabel(item.category)}
+                      {categoryLabel(item.category, model.categoryLabels)}
                     </p>
                   </td>
                   <td className="sticky left-44 z-10 w-16 min-w-16 border-b border-r bg-white px-2 py-1.5 text-right font-mono text-xs tabular-nums text-teal-800">

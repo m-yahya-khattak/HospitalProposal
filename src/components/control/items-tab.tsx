@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { FormulaMatrix } from "@/components/control/formula-matrix";
 import { ItemDrawer } from "@/components/control/item-drawer";
+import { CategoryPanel, addCategoryToModel } from "@/components/control/category-panel";
 import { NumberInput } from "@/components/control/number-input";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,14 +27,9 @@ import { Switch } from "@/components/ui/switch";
 import { newId, slugify } from "@/lib/id";
 import { sourceOptions } from "@/lib/formula-label";
 import { formulaSentence } from "@/lib/formula-matrix";
-import {
-  categoryLabel,
-  formatInt,
-  isCustomCategory,
-  modelCategories,
-} from "@/lib/format";
+import { categoryLabel, formatInt, modelCategories } from "@/lib/format";
 import type { Evaluation, Formula, PlanningModel } from "@/lib/types";
-import { LayoutGrid, List, Plus, Trash2 } from "lucide-react";
+import { LayoutGrid, List, Pencil, Plus, Trash2 } from "lucide-react";
 
 type Props = {
   model: PlanningModel;
@@ -117,8 +113,10 @@ export function ItemsTab({
   const [category, setCategory] = useState("ward-equipment");
   const [categoryName, setCategoryName] = useState("");
   const [itemId, setItemId] = useState<string | null>(null);
+  const [manageId, setManageId] = useState<string | null>(null);
   const sources = sourceOptions(model);
   const categories = modelCategories(model);
+  const labels = model.categoryLabels;
 
   const patch = (fn: (m: PlanningModel) => void) => {
     const next = structuredClone(model);
@@ -191,44 +189,29 @@ export function ItemsTab({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {(["all", ...categories] as const).map((id) => {
-          const custom = id !== "all" && isCustomCategory(id);
-          return (
-            <div key={id} className="flex items-center">
+        {(["all", ...categories] as const).map((id) => (
+          <div key={id} className="flex items-center">
+            <Button
+              size="sm"
+              variant={filter === id ? "default" : "outline"}
+              className={id === "all" ? undefined : "rounded-r-none"}
+              onClick={() => onFilterChange(id)}
+            >
+              {id === "all" ? "All" : categoryLabel(id, labels)}
+            </Button>
+            {id !== "all" ? (
               <Button
                 size="sm"
                 variant={filter === id ? "default" : "outline"}
-                className={custom ? "rounded-r-none" : undefined}
-                onClick={() => onFilterChange(id)}
+                className="rounded-l-none border-l-0 px-1.5"
+                aria-label={`Edit ${categoryLabel(id, labels)}`}
+                onClick={() => setManageId(id)}
               >
-                {id === "all" ? "All" : categoryLabel(id)}
+                <Pencil />
               </Button>
-              {custom ? (
-                <Button
-                  size="sm"
-                  variant={filter === id ? "default" : "outline"}
-                  className="rounded-l-none border-l-0 px-1.5"
-                  aria-label={`Remove ${categoryLabel(id)}`}
-                  onClick={() => {
-                    patch((m) => {
-                      m.categories = (m.categories ?? []).filter(
-                        (category) => category !== id,
-                      );
-                      for (const item of m.items) {
-                        if (item.category === id) {
-                          item.category = "ward-equipment";
-                        }
-                      }
-                    });
-                    if (filter === id) onFilterChange("all");
-                  }}
-                >
-                  <Trash2 />
-                </Button>
-              ) : null}
-            </div>
-          );
-        })}
+            ) : null}
+          </div>
+        ))}
       </div>
       <form
         className="flex max-w-md gap-2"
@@ -236,15 +219,14 @@ export function ItemsTab({
           event.preventDefault();
           const trimmed = categoryName.trim();
           if (!trimmed) return;
-          const id = slugify(trimmed);
+          let created: string | null = null;
           patch((m) => {
-            const next = modelCategories(m);
-            if (!next.includes(id) && !m.categories?.includes(id)) {
-              m.categories = [...(m.categories ?? []), id];
-            }
+            created = addCategoryToModel(m, trimmed);
           });
-          onFilterChange(id);
-          setCategory(id);
+          if (created) {
+            onFilterChange(created);
+            setCategory(created);
+          }
           setCategoryName("");
         }}
       >
@@ -275,7 +257,7 @@ export function ItemsTab({
             >
               <div className="flex items-center justify-between border-b px-4 py-3">
                 <h3 className="text-sm font-medium">
-                  {categoryLabel(group.id)}
+                  {categoryLabel(group.id, labels)}
                 </h3>
                 <p className="text-xs text-muted-foreground">
                   {group.rows.length} items
@@ -315,6 +297,22 @@ export function ItemsTab({
           ))}
         </div>
       )}
+
+      {manageId ? (
+        <CategoryPanel
+          categoryId={manageId}
+          model={model}
+          open
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen) setManageId(null);
+          }}
+          onChange={onChange}
+          onDeleted={() => {
+            if (filter === manageId) onFilterChange("all");
+            setManageId(null);
+          }}
+        />
+      ) : null}
 
       {itemId ? (
         <ItemDrawer
@@ -366,7 +364,7 @@ export function ItemsTab({
                 <SelectContent>
                   {categories.map((id) => (
                     <SelectItem key={id} value={id}>
-                      {categoryLabel(id)}
+                      {categoryLabel(id, labels)}
                     </SelectItem>
                   ))}
                 </SelectContent>

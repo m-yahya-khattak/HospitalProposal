@@ -83,6 +83,8 @@ export type PlanningModel = {
   departments: Department[];
   specialties: Specialty[];
   categories?: string[];
+  hiddenCategories?: string[];
+  categoryLabels?: Record<string, string>;
   theatre: TheatreRules;
   items: CatalogItem[];
   capex: CapexConfig;

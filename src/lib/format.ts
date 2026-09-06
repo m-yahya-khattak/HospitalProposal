@@ -42,7 +42,11 @@ export function formatCompact(n: number) {
   return formatInt(n);
 }
 
-export function categoryLabel(category: string) {
+export function categoryLabel(
+  category: string,
+  labels?: Record<string, string>,
+) {
+  if (labels?.[category]) return labels[category];
   switch (category) {
     case "furniture":
       return "Furniture";
@@ -61,11 +65,12 @@ export function categoryLabel(category: string) {
   }
 }
 
-export function isCustomCategory(id: string) {
-  return !(DEFAULT_CATEGORIES as readonly string[]).includes(id);
-}
-
-export function modelCategories(model: { categories?: string[]; items: { category: string }[] }) {
+export function modelCategories(model: {
+  categories?: string[];
+  hiddenCategories?: string[];
+  items: { category: string }[];
+}) {
+  const hidden = new Set(model.hiddenCategories ?? []);
   const seen = new Set<string>();
   const list: string[] = [];
   for (const id of [
@@ -73,7 +78,7 @@ export function modelCategories(model: { categories?: string[]; items: { categor
     ...(model.categories ?? []),
     ...model.items.map((item) => item.category),
   ]) {
-    if (!id || seen.has(id)) continue;
+    if (!id || seen.has(id) || hidden.has(id)) continue;
     seen.add(id);
     list.push(id);
   }

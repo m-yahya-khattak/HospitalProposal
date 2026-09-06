@@ -75,7 +75,7 @@ export function DepartmentPanel({
                     <div>
                       <p className="font-medium">{line.item.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {categoryLabel(line.item.category)}
+                        {categoryLabel(line.item.category, model.categoryLabels)}
                       </p>
                     </div>
                     <Button

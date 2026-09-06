@@ -94,7 +94,7 @@ export function ItemDrawer({
         <SheetHeader>
           <div className="min-w-0">
             <p className="text-xs font-medium text-teal-800">
-              {categoryLabel(item.category)}
+              {categoryLabel(item.category, model.categoryLabels)}
             </p>
             <SheetTitle>{item.name}</SheetTitle>
             <SheetDescription>
@@ -137,7 +137,7 @@ export function ItemDrawer({
                 <SelectContent>
                   {categories.map((category) => (
                     <SelectItem key={category} value={category}>
-                      {categoryLabel(category)}
+                      {categoryLabel(category, model.categoryLabels)}
                     </SelectItem>
                   ))}
                 </SelectContent>

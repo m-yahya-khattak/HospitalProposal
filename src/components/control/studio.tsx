@@ -121,6 +121,7 @@ export function Studio({
         {hasProject && !missing ? (
           <KpiStrip
             result={result}
+            labels={model.categoryLabels}
             onSelectTheatres={() => setTab("capacity")}
             onSelectCategory={(id) => {
               setItemFilter(id);

@@ -5,6 +5,7 @@ import type { Evaluation } from "@/lib/types";
 
 type Props = {
   result: Evaluation;
+  labels?: Record<string, string>;
   onSelectCategory?: (id: string) => void;
   onSelectTheatres?: () => void;
 };
@@ -43,7 +44,12 @@ function SizeCell({
   );
 }
 
-export function KpiStrip({ result, onSelectCategory, onSelectTheatres }: Props) {
+export function KpiStrip({
+  result,
+  labels,
+  onSelectCategory,
+  onSelectTheatres,
+}: Props) {
   const theatres = result.theatres;
   const theatreHint = [
     `${theatres.ot} OT`,
@@ -77,7 +83,7 @@ export function KpiStrip({ result, onSelectCategory, onSelectTheatres }: Props) 
             onClick={() => onSelectCategory?.(row.id)}
           >
             <p className="text-[11px] font-medium text-muted-foreground">
-              {categoryLabel(row.id)}
+              {categoryLabel(row.id, labels)}
             </p>
             <p className="mt-0.5 text-sm tabular-nums">
               {formatInt(row.qty)}
