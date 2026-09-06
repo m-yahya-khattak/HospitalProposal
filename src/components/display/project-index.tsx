@@ -20,7 +20,7 @@ export function ProjectIndex() {
           Project planning
         </p>
         <h1 className="mt-3 font-heading text-4xl tracking-tight md:text-5xl">
-          St Mary's Hospital
+          Hospital proposals
         </h1>
         <p className="mt-3 max-w-xl text-stone-600">
           Open a public project display. Operators sign in to create and edit

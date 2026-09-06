@@ -105,7 +105,7 @@ const laboratory = [
 
 export const seedModel: PlanningModel = {
   version: 1,
-  title: "St Mary's Hospital",
+  title: "Hospital Capacity & Capital Plan",
   totalBeds: 200,
   rounding: "ceil",
   theatre: {

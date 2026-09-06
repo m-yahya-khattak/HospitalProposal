@@ -49,7 +49,10 @@ export function NumberInput({
         inputMode="decimal"
         value={text}
         step={step}
-        className={cn("font-mono tabular-nums", suffix && "pr-8")}
+        className={cn(
+          "font-mono tabular-nums",
+          suffix && (suffix.length > 1 ? "pr-12" : "pr-8"),
+        )}
         onChange={(e) => setText(e.target.value)}
         onBlur={() => commit(text)}
         onFocus={(e) => e.target.select()}

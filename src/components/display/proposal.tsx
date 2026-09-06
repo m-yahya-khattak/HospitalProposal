@@ -140,7 +140,7 @@ function ProposalBody({
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-[11px] font-medium tracking-[0.22em] text-teal-800 uppercase">
-              St Mary's Hospital
+              Project planning
             </p>
             <h1 className="mt-3 max-w-3xl font-heading text-5xl leading-[1.05] tracking-tight md:text-6xl">
               {title}

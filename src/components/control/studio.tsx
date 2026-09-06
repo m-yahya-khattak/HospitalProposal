@@ -59,7 +59,7 @@ export function Studio({
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-6">
           <div>
             <p className="text-[11px] font-medium tracking-[0.18em] text-teal-800 uppercase">
-              St Mary's Hospital
+              Project planning
             </p>
             <h1 className="font-heading text-2xl tracking-tight">
               {missing

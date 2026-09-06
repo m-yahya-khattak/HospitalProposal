@@ -15,7 +15,7 @@ const newsreader = Newsreader({
 });
 
 export const metadata: Metadata = {
-  title: "St Mary's Hospital",
+  title: "Hospital Capacity & Capital Plan",
   description:
     "Interactive hospital planning: beds, theatres, equipment and CAPEX.",
 };

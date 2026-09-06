@@ -22,6 +22,7 @@ export type Department = {
   id: string;
   name: string;
   sharePercent: number;
+  beds?: number;
   furniture: boolean;
   kpiCritical?: boolean;
   specialtyId?: string;

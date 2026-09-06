@@ -2,7 +2,6 @@
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { NumberInput } from "@/components/control/number-input";
 import { formatInt, formatPercent } from "@/lib/format";
@@ -15,6 +14,22 @@ type Props = {
   onChange: (next: PlanningModel) => void;
 };
 
+function departmentBeds(model: PlanningModel, result: Evaluation) {
+  return model.departments.map((dept) => {
+    if (typeof dept.beds === "number") return Math.max(0, Math.round(dept.beds));
+    return result.departments.find((d) => d.id === dept.id)?.beds ?? 0;
+  });
+}
+
+function applyBedCounts(model: PlanningModel, counts: number[]) {
+  const total = counts.reduce((sum, n) => sum + n, 0);
+  model.totalBeds = Math.max(1, total);
+  model.departments.forEach((dept, index) => {
+    dept.beds = counts[index] ?? 0;
+    dept.sharePercent = (dept.beds / model.totalBeds) * 100;
+  });
+}
+
 export function CapacityTab({ model, result, onChange }: Props) {
   const patch = (fn: (m: PlanningModel) => void) => {
     const next = structuredClone(model);
@@ -22,7 +37,24 @@ export function CapacityTab({ model, result, onChange }: Props) {
     onChange(next);
   };
 
-  const shareOk = Math.abs(result.shareTotal - 100) < 0.05;
+  const counts = departmentBeds(model, result);
+  const allocated = counts.reduce((sum, n) => sum + n, 0);
+  const bedsOk = allocated === model.totalBeds;
+
+  const setTotalBeds = (total: number) => {
+    patch((m) => {
+      const nextTotal = Math.max(10, Math.round(total));
+      const current = departmentBeds(m, result);
+      const prevTotal = current.reduce((sum, n) => sum + n, 0) || m.totalBeds;
+      const scaled = current.map((n) =>
+        Math.round((n * nextTotal) / prevTotal),
+      );
+      const drift = nextTotal - scaled.reduce((sum, n) => sum + n, 0);
+      if (scaled.length) scaled[scaled.length - 1] += drift;
+      applyBedCounts(m, scaled);
+      m.totalBeds = nextTotal;
+    });
+  };
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -31,19 +63,15 @@ export function CapacityTab({ model, result, onChange }: Props) {
           <div>
             <h2 className="font-heading text-2xl">Bed capacity</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              One master input. Department shares allocate beds; theatres follow
-              the OT rules.
+              Enter beds for each department. The total is their sum; theatres
+              follow the OT rules.
             </p>
           </div>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="icon"
-              onClick={() =>
-                patch((m) => {
-                  m.totalBeds = Math.max(10, m.totalBeds - 10);
-                })
-              }
+              onClick={() => setTotalBeds(model.totalBeds - 10)}
             >
               <Minus />
             </Button>
@@ -52,20 +80,12 @@ export function CapacityTab({ model, result, onChange }: Props) {
               value={model.totalBeds}
               min={10}
               max={2000}
-              onChange={(v) =>
-                patch((m) => {
-                  m.totalBeds = Math.round(v);
-                })
-              }
+              onChange={setTotalBeds}
             />
             <Button
               variant="outline"
               size="icon"
-              onClick={() =>
-                patch((m) => {
-                  m.totalBeds = Math.min(2000, m.totalBeds + 10);
-                })
-              }
+              onClick={() => setTotalBeds(model.totalBeds + 10)}
             >
               <Plus />
             </Button>
@@ -76,56 +96,43 @@ export function CapacityTab({ model, result, onChange }: Props) {
           <p className="text-muted-foreground">Department mix</p>
           <p
             className={
-              shareOk
-                ? "text-teal-800"
-                : "font-medium text-destructive"
+              bedsOk ? "text-teal-800" : "font-medium text-destructive"
             }
           >
-            {formatPercent(result.shareTotal)} of 100%
-            {shareOk ? "" : " — shares should total 100%"}
+            {formatInt(allocated)} of {formatInt(model.totalBeds)} beds
+            {bedsOk ? "" : " — department beds should match the total"}
           </p>
         </div>
 
         <ul className="mt-3 divide-y rounded-xl ring-1 ring-foreground/10">
           {model.departments.map((dept, index) => {
-            const beds =
-              result.departments.find((d) => d.id === dept.id)?.beds ?? 0;
+            const beds = counts[index] ?? 0;
+            const share = model.totalBeds ? (beds / model.totalBeds) * 100 : 0;
             return (
               <li
                 key={dept.id}
-                className="grid grid-cols-[1fr_72px_88px] items-center gap-3 px-4 py-3"
+                className="grid grid-cols-[1fr_120px] items-center gap-3 px-4 py-3"
               >
                 <div>
                   <p className="text-sm font-medium">{dept.name}</p>
-                  <Slider
-                    className="mt-2"
-                    min={0}
-                    max={60}
-                    step={0.5}
-                    value={[dept.sharePercent]}
-                    onValueChange={(value) => {
-                      const n = Array.isArray(value) ? value[0] : 0;
-                      patch((m) => {
-                        m.departments[index].sharePercent = n;
-                      });
-                    }}
-                  />
+                  <p className="text-xs text-muted-foreground">
+                    {formatPercent(share)} of total
+                  </p>
                 </div>
                 <NumberInput
-                  value={dept.sharePercent}
+                  value={beds}
                   min={0}
-                  max={100}
-                  step={0.5}
-                  suffix="%"
-                  onChange={(v) =>
+                  max={2000}
+                  suffix="beds"
+                  className="w-[7.5rem]"
+                  onChange={(value) =>
                     patch((m) => {
-                      m.departments[index].sharePercent = v;
+                      const next = departmentBeds(m, result);
+                      next[index] = Math.max(0, Math.round(value));
+                      applyBedCounts(m, next);
                     })
                   }
                 />
-                <p className="text-right font-mono text-sm tabular-nums">
-                  {formatInt(beds)} beds
-                </p>
               </li>
             );
           })}

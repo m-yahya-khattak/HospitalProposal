@@ -24,9 +24,11 @@ function allocateBeds(model: PlanningModel): DeptResult[] {
 
   return model.departments.map((d) => {
     const gatedOff = Boolean(d.specialtyId && !specialtyOn.get(d.specialtyId));
-    const beds = gatedOff
-      ? 0
-      : Math.round((model.totalBeds * d.sharePercent) / 100);
+    const rawBeds =
+      typeof d.beds === "number"
+        ? d.beds
+        : Math.round((model.totalBeds * d.sharePercent) / 100);
+    const beds = gatedOff ? 0 : Math.max(0, Math.round(rawBeds));
     return {
       id: d.id,
       name: d.name,

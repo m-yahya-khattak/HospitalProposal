@@ -241,6 +241,7 @@ export function CatalogTab({ model, result, onChange }: Props) {
                 id: slugify(trimmed),
                 name: trimmed,
                 sharePercent: 0,
+                beds: 0,
                 furniture: true,
               });
             });
