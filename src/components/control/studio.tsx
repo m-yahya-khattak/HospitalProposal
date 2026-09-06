@@ -7,6 +7,8 @@ import { CapexTab } from "@/components/control/capex-tab";
 import { ItemsTab } from "@/components/control/items-tab";
 import { KpiStrip } from "@/components/control/kpi-strip";
 import { ProjectPanel } from "@/components/control/project-panel";
+import { CurrencyProvider } from "@/components/currency-provider";
+import { CurrencySwitcher } from "@/components/currency-switcher";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePlanningModel } from "@/hooks/use-planning-model";
@@ -53,7 +55,7 @@ export function Studio({
 
   const missing = hasProject && hydrated && notFound;
 
-  return (
+  const studio = (
     <div className="min-h-dvh bg-[#f7f6f3] text-stone-900">
       <header className="sticky top-0 z-20 border-b bg-white/90 backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-6">
@@ -86,6 +88,7 @@ export function Studio({
                 >
                   {live ? "Live from database" : "Connecting…"}
                 </span>
+                <CurrencySwitcher />
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -189,5 +192,18 @@ export function Studio({
         currentSlug={slug}
       />
     </div>
+  );
+
+  return (
+    <CurrencyProvider
+      fx={model.fx}
+      onFxChange={
+        hasProject && !missing
+          ? (fx) => setModel((current) => ({ ...current, fx }))
+          : undefined
+      }
+    >
+      {studio}
+    </CurrencyProvider>
   );
 }

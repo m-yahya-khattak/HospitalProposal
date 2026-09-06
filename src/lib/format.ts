@@ -17,18 +17,6 @@ export function formatPercent(n: number, digits = 1) {
   return `${formatNumber(n, digits)}%`;
 }
 
-export function formatTsh(n: number) {
-  return `TSH ${formatInt(n)}`;
-}
-
-export function formatUsd(n: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(n);
-}
-
 export function formatCompact(n: number) {
   if (Math.abs(n) >= 1_000_000_000) {
     return `${formatNumber(n / 1_000_000_000, 2)}B`;

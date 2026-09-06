@@ -1,6 +1,7 @@
 "use client";
 
 import { NumberInput } from "@/components/control/number-input";
+import { useMoney } from "@/components/currency-provider";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -11,7 +12,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatInt, formatTsh, formatUsd } from "@/lib/format";
+import { BASE_CURRENCY } from "@/lib/currency";
+import { formatInt } from "@/lib/format";
 import type { Evaluation, PlanningModel } from "@/lib/types";
 
 type Props = {
@@ -21,6 +23,7 @@ type Props = {
 };
 
 export function CapexTab({ model, result, onChange }: Props) {
+  const money = useMoney();
   const patch = (fn: (m: PlanningModel) => void) => {
     const next = structuredClone(model);
     fn(next);
@@ -34,23 +37,9 @@ export function CapexTab({ model, result, onChange }: Props) {
           <h2 className="text-xl font-medium tracking-tight">Area & rates</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Square feet per bed interpolates between these bands. Construction
-            is rate × area. Medical equipment uses catalog totals, not a flat
-            sq.ft rate.
+            is rate × area, entered in {BASE_CURRENCY}. Medical equipment uses
+            catalog totals, not a flat sq.ft rate.
           </p>
-        </div>
-
-        <div className="max-w-xs">
-          <Label>USD conversion (TSH per USD)</Label>
-          <NumberInput
-            className="mt-1"
-            value={model.capex.fxRate}
-            min={1}
-            onChange={(v) =>
-              patch((m) => {
-                m.capex.fxRate = v;
-              })
-            }
-          />
         </div>
 
         <div className="overflow-hidden rounded-xl ring-1 ring-foreground/10">
@@ -97,7 +86,7 @@ export function CapexTab({ model, result, onChange }: Props) {
             <TableHeader>
               <TableRow>
                 <TableHead>Line</TableHead>
-                <TableHead>TSH / sq.ft</TableHead>
+                <TableHead>{BASE_CURRENCY} / sq.ft</TableHead>
                 <TableHead>From BOM</TableHead>
               </TableRow>
             </TableHeader>
@@ -114,6 +103,7 @@ export function CapexTab({ model, result, onChange }: Props) {
                       <NumberInput
                         value={line.ratePerSqft}
                         min={0}
+                        suffix={BASE_CURRENCY}
                         onChange={(v) =>
                           patch((m) => {
                             m.capex.lines[index].ratePerSqft = v;
@@ -144,16 +134,16 @@ export function CapexTab({ model, result, onChange }: Props) {
         <p className="mt-1 text-sm text-muted-foreground">
           {formatInt(result.areaSqft)} sq.ft · {formatInt(result.sqftPerBed)}{" "}
           sq.ft/bed
-          {model.capex.landExcluded ? " · land excluded" : ""}
+          {model.capex.landExcluded ? " · land excluded" : ""} · shown in{" "}
+          {money.currency}
         </p>
         <div className="mt-4 overflow-hidden rounded-xl ring-1 ring-foreground/10">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Head</TableHead>
-                <TableHead className="text-right">Premium TSH</TableHead>
-                <TableHead className="text-right">Budget TSH</TableHead>
-                <TableHead className="text-right">Premium USD</TableHead>
+                <TableHead className="text-right">Premium</TableHead>
+                <TableHead className="text-right">Budget</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -166,26 +156,20 @@ export function CapexTab({ model, result, onChange }: Props) {
                     ) : null}
                   </TableCell>
                   <TableCell className="text-right font-mono tabular-nums">
-                    {formatTsh(line.tshPremium)}
+                    {money.format(line.premium)}
                   </TableCell>
                   <TableCell className="text-right font-mono tabular-nums">
-                    {formatTsh(line.tshBudget)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono tabular-nums">
-                    {formatUsd(line.usdPremium)}
+                    {money.format(line.budget)}
                   </TableCell>
                 </TableRow>
               ))}
               <TableRow className="font-medium">
                 <TableCell>Total</TableCell>
                 <TableCell className="text-right font-mono">
-                  {formatTsh(result.capex.totalTshPremium)}
+                  {money.format(result.capex.totalPremium)}
                 </TableCell>
                 <TableCell className="text-right font-mono">
-                  {formatTsh(result.capex.totalTshBudget)}
-                </TableCell>
-                <TableCell className="text-right font-mono">
-                  {formatUsd(result.capex.totalUsdPremium)}
+                  {money.format(result.capex.totalBudget)}
                 </TableCell>
               </TableRow>
             </TableBody>

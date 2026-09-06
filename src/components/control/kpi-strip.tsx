@@ -1,6 +1,7 @@
 "use client";
 
-import { categoryLabel, formatInt, formatTsh, formatUsd } from "@/lib/format";
+import { useMoney } from "@/components/currency-provider";
+import { categoryLabel, formatInt } from "@/lib/format";
 import type { Evaluation } from "@/lib/types";
 
 type Props = {
@@ -50,6 +51,7 @@ export function KpiStrip({
   onSelectCategory,
   onSelectTheatres,
 }: Props) {
+  const money = useMoney();
   const theatres = result.theatres;
   const theatreHint = [
     `${theatres.ot} OT`,
@@ -88,11 +90,11 @@ export function KpiStrip({
             <p className="mt-0.5 text-sm tabular-nums">
               {formatInt(row.qty)}
               <span className="ml-1 text-xs text-muted-foreground">
-                {formatTsh(row.premium).replace("TSH ", "")}
+                {money.format(row.premium, true)}
               </span>
             </p>
             <p className="text-[11px] text-muted-foreground">
-              budget {formatTsh(row.budget).replace("TSH ", "")}
+              budget {money.format(row.budget, true)}
             </p>
           </button>
         ))}
@@ -101,10 +103,10 @@ export function KpiStrip({
             Total CAPEX
           </p>
           <p className="mt-0.5 font-heading text-xl leading-none tabular-nums">
-            {formatUsd(result.capex.totalUsdPremium)}
+            {money.format(result.capex.totalPremium)}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            budget {formatUsd(result.capex.totalUsdBudget)}
+            budget {money.format(result.capex.totalBudget)}
           </p>
         </div>
       </div>

@@ -12,9 +12,11 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { CurrencyProvider, useMoney } from "@/components/currency-provider";
+import { CurrencySwitcher } from "@/components/currency-switcher";
 import { Badge } from "@/components/ui/badge";
 import { usePlanningModel } from "@/hooks/use-planning-model";
-import { formatInt, formatPercent, formatTsh, formatUsd } from "@/lib/format";
+import { formatInt, formatPercent } from "@/lib/format";
 import type { Evaluation } from "@/lib/types";
 import Link from "next/link";
 
@@ -77,10 +79,12 @@ function ChartTooltip({
   active,
   payload,
   label,
+  formatValue,
 }: {
   active?: boolean;
   payload?: { name: string; value: number; color: string }[];
   label?: string;
+  formatValue?: (value: number) => string;
 }) {
   if (!active || !payload?.length) return null;
   return (
@@ -88,7 +92,10 @@ function ChartTooltip({
       {label ? <p className="mb-1 font-medium">{label}</p> : null}
       {payload.map((p) => (
         <p key={p.name} style={{ color: p.color }}>
-          {p.name}: {typeof p.value === "number" ? formatInt(p.value) : p.value}
+          {p.name}:{" "}
+          {typeof p.value === "number"
+            ? (formatValue ?? formatInt)(p.value)
+            : p.value}
         </p>
       ))}
     </div>
@@ -106,6 +113,9 @@ function ProposalBody({
   title: string;
   specialtyNames: string[];
 }) {
+  const money = useMoney();
+  const shown = (usd: number) =>
+    Math.round(usd * (money.missing ? 1 : money.rate));
   const mix = result.departments.map((d) => ({
     name: d.name,
     beds: d.beds,
@@ -125,13 +135,13 @@ function ProposalBody({
     .slice(0, 8)
     .map((i) => ({
       name: i.name,
-      Premium: i.premiumCost,
-      Budgetary: i.budgetCost,
+      Premium: shown(i.premiumCost),
+      Budgetary: shown(i.budgetCost),
     }));
   const capexChart = result.capex.lines.map((l) => ({
     name: l.name,
-    Premium: Math.round(l.usdPremium),
-    Budgetary: Math.round(l.usdBudget),
+    Premium: shown(l.premium),
+    Budgetary: shown(l.budget),
   }));
   const diagnostics = result.items.filter(
     (i) => i.category === "diagnostic" || i.category === "laboratory",
@@ -156,6 +166,7 @@ function ProposalBody({
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <CurrencySwitcher />
             <Link
               href="/"
               className="text-xs text-stone-500 hover:text-teal-800"
@@ -184,11 +195,11 @@ function ProposalBody({
           />
           <Kpi
             label="Premium CAPEX"
-            value={formatUsd(result.capex.totalUsdPremium)}
+            value={money.format(result.capex.totalPremium)}
           />
           <Kpi
             label="Budgetary CAPEX"
-            value={formatUsd(result.capex.totalUsdBudget)}
+            value={money.format(result.capex.totalBudget)}
           />
         </div>
 
@@ -199,10 +210,10 @@ function ProposalBody({
                 Premium equipment + CAPEX
               </p>
               <p className="mt-3 font-heading text-4xl tabular-nums">
-                {formatUsd(result.capex.totalUsdPremium)}
+                {money.format(result.capex.totalPremium)}
               </p>
               <p className="mt-2 text-sm text-stone-500">
-                Equipment BOM {formatTsh(result.bomPremium)}
+                Equipment BOM {money.format(result.bomPremium)}
               </p>
             </div>
             <div className="rounded-2xl bg-white p-8 ring-1 ring-stone-200">
@@ -210,10 +221,10 @@ function ProposalBody({
                 Budgetary equipment + CAPEX
               </p>
               <p className="mt-3 font-heading text-4xl tabular-nums">
-                {formatUsd(result.capex.totalUsdBudget)}
+                {money.format(result.capex.totalBudget)}
               </p>
               <p className="mt-2 text-sm text-stone-500">
-                Equipment BOM {formatTsh(result.bomBudget)}
+                Equipment BOM {money.format(result.bomBudget)}
               </p>
             </div>
           </div>
@@ -338,7 +349,9 @@ function ProposalBody({
                 <CartesianGrid stroke="#e7e5e4" vertical={false} />
                 <XAxis dataKey="name" tick={{ fill: "#78716c", fontSize: 11 }} interval={0} angle={-18} textAnchor="end" height={70} />
                 <YAxis tick={{ fill: "#78716c", fontSize: 11 }} />
-                <Tooltip content={<ChartTooltip />} />
+                <Tooltip
+                  content={<ChartTooltip formatValue={money.formatShown} />}
+                />
                 <Bar dataKey="Premium" fill={TEAL} radius={[4, 4, 0, 0]} />
                 <Bar dataKey="Budgetary" fill={STONE} radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -360,10 +373,10 @@ function ProposalBody({
                     <td className="px-4 py-2.5">{item.name}</td>
                     <td className="px-4 py-2.5 text-right tabular-nums">{item.qty}</td>
                     <td className="px-4 py-2.5 text-right tabular-nums">
-                      {item.premiumCost ? formatInt(item.premiumCost) : "—"}
+                      {item.premiumCost ? money.format(item.premiumCost) : "—"}
                     </td>
                     <td className="px-4 py-2.5 text-right tabular-nums">
-                      {item.budgetCost ? formatInt(item.budgetCost) : "—"}
+                      {item.budgetCost ? money.format(item.budgetCost) : "—"}
                     </td>
                   </tr>
                 ))}
@@ -392,15 +405,17 @@ function ProposalBody({
                   width={160}
                   tick={{ fill: "#44403c", fontSize: 11 }}
                 />
-                <Tooltip content={<ChartTooltip />} />
+                <Tooltip
+                  content={<ChartTooltip formatValue={money.formatShown} />}
+                />
                 <Bar dataKey="Premium" fill={TEAL} radius={[0, 4, 4, 0]} />
                 <Bar dataKey="Budgetary" fill={STONE} radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
           <p className="mt-4 text-sm text-stone-500">
-            Totals {formatTsh(result.capex.totalTshPremium)} premium /{" "}
-            {formatTsh(result.capex.totalTshBudget)} budgetary. Medical
+            Totals {money.format(result.capex.totalPremium)} premium /{" "}
+            {money.format(result.capex.totalBudget)} budgetary. Medical
             equipment follows the bill of quantities. Land is excluded.
           </p>
         </Section>
@@ -493,11 +508,13 @@ export function Proposal({ slug }: { slug: string }) {
   }
 
   return (
-    <ProposalBody
-      result={result}
-      live={live}
-      title={model.title}
-      specialtyNames={model.specialties.filter((s) => s.enabled).map((s) => s.name)}
-    />
+    <CurrencyProvider fx={model.fx}>
+      <ProposalBody
+        result={result}
+        live={live}
+        title={model.title}
+        specialtyNames={model.specialties.filter((s) => s.enabled).map((s) => s.name)}
+      />
+    </CurrencyProvider>
   );
 }

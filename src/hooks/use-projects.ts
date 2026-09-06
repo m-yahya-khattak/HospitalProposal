@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { cloneSeed } from "@/data/seed-model";
+import { normalizePlanningModel } from "@/lib/currency";
 import { createClient } from "@/lib/supabase/client";
 import { slugify } from "@/lib/id";
-import { isPlanningModel } from "@/lib/sync";
+import { parsePlanningModel } from "@/lib/sync";
 import { mapProject, type ProjectRow } from "@/lib/projects";
 import type { PlanningModel, PlanningProject } from "@/lib/types";
 
@@ -18,7 +19,9 @@ async function insertProject(
   source?: PlanningModel,
 ) {
   const base = slugify(name);
-  const model = source ? structuredClone(source) : cloneSeed();
+  const model = normalizePlanningModel(
+    source ? structuredClone(source) : cloneSeed(),
+  );
   model.title = name;
 
   for (let attempt = 0; attempt < 8; attempt += 1) {
@@ -132,14 +135,15 @@ export function useProjects() {
         .eq("owner_id", user.id)
         .single();
       if (loadError) throw new Error(loadError.message);
-      if (!isPlanningModel(data?.model)) {
+      const source = parsePlanningModel(data?.model);
+      if (!source) {
         throw new Error("That project has no planning data to copy.");
       }
       const slug = await insertProject(
         supabase,
         user.id,
         name.trim(),
-        data.model,
+        source,
       );
       await reload();
       return slug;

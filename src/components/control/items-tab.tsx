@@ -70,6 +70,7 @@ function ItemRow({
       <NumberInput
         value={item.premiumUnit}
         min={0}
+        suffix="USD"
         onChange={(value) =>
           onPatch((m) => {
             m.items[index].premiumUnit = value;
@@ -79,6 +80,7 @@ function ItemRow({
       <NumberInput
         value={item.budgetUnit}
         min={0}
+        suffix="USD"
         onChange={(value) =>
           onPatch((m) => {
             m.items[index].budgetUnit = value;
@@ -266,8 +268,8 @@ export function ItemsTab({
               <div className="hidden items-center gap-3 border-b px-4 py-2 text-[11px] font-medium text-muted-foreground md:grid md:grid-cols-6">
                 <span>Item</span>
                 <span>Qty</span>
-                <span>Premium</span>
-                <span>Budget</span>
+                <span>Premium USD</span>
+                <span>Budget USD</span>
                 <span>On</span>
                 <span className="sr-only">Actions</span>
               </div>

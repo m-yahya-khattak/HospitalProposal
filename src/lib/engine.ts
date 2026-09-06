@@ -202,25 +202,22 @@ export function evaluate(model: PlanningModel): Evaluation {
 
   const sqftPerBed = interpolateSqft(model.totalBeds, model.capex.areaBands);
   const areaSqft = model.totalBeds * sqftPerBed;
-  const fx = model.capex.fxRate || 1;
 
   const capexLines: CapexLineResult[] = model.capex.lines.map((line) => {
     const fromBom = Boolean(line.fromBom);
-    const tshPremium = fromBom ? bomPremium : areaSqft * line.ratePerSqft;
-    const tshBudget = fromBom ? bomBudget : areaSqft * line.ratePerSqft;
+    const premium = fromBom ? bomPremium : areaSqft * line.ratePerSqft;
+    const budget = fromBom ? bomBudget : areaSqft * line.ratePerSqft;
     return {
       id: line.id,
       name: line.name,
       fromBom,
-      tshPremium,
-      tshBudget,
-      usdPremium: tshPremium / fx,
-      usdBudget: tshBudget / fx,
+      premium,
+      budget,
     };
   });
 
-  const totalTshPremium = capexLines.reduce((s, l) => s + l.tshPremium, 0);
-  const totalTshBudget = capexLines.reduce((s, l) => s + l.tshBudget, 0);
+  const totalPremium = capexLines.reduce((s, l) => s + l.premium, 0);
+  const totalBudget = capexLines.reduce((s, l) => s + l.budget, 0);
 
   const ot = roundQty(otRaw);
   const minorOt = roundQty(minorOtRaw);
@@ -253,10 +250,8 @@ export function evaluate(model: PlanningModel): Evaluation {
     areaSqft,
     capex: {
       lines: capexLines,
-      totalTshPremium,
-      totalTshBudget,
-      totalUsdPremium: totalTshPremium / fx,
-      totalUsdBudget: totalTshBudget / fx,
+      totalPremium,
+      totalBudget,
     },
   };
 }

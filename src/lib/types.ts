@@ -69,10 +69,20 @@ export type CapexLine = {
 };
 
 export type CapexConfig = {
-  fxRate: number;
   areaBands: AreaBand[];
   lines: CapexLine[];
   landExcluded: boolean;
+};
+
+/** Display FX only. Saved money is always USD. */
+export type FxSource = "live" | "pinned" | "override";
+
+export type FxSettings = {
+  displayCurrency: string;
+  source: FxSource;
+  /** Units of displayCurrency per 1 USD, when pinned or overridden. */
+  rate?: number;
+  asOf?: string;
 };
 
 export type PlanningModel = {
@@ -88,6 +98,7 @@ export type PlanningModel = {
   theatre: TheatreRules;
   items: CatalogItem[];
   capex: CapexConfig;
+  fx?: FxSettings;
 };
 
 export type PlanningProject = {
@@ -127,10 +138,8 @@ export type CapexLineResult = {
   id: string;
   name: string;
   fromBom: boolean;
-  tshPremium: number;
-  tshBudget: number;
-  usdPremium: number;
-  usdBudget: number;
+  premium: number;
+  budget: number;
 };
 
 export type CategoryRollup = {
@@ -167,9 +176,7 @@ export type Evaluation = {
   areaSqft: number;
   capex: {
     lines: CapexLineResult[];
-    totalTshPremium: number;
-    totalTshBudget: number;
-    totalUsdPremium: number;
-    totalUsdBudget: number;
+    totalPremium: number;
+    totalBudget: number;
   };
 };

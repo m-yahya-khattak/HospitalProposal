@@ -347,8 +347,8 @@ export const seedModel: PlanningModel = {
     ...radiology,
     ...laboratory,
   ],
+  fx: { displayCurrency: "USD", source: "live" },
   capex: {
-    fxRate: 2650,
     landExcluded: true,
     areaBands: [
       { beds: 50, sqftPerBed: 1260 },

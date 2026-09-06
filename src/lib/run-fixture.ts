@@ -1,4 +1,5 @@
 import { seedModel } from "../data/seed-model";
+import { normalizePlanningModel } from "./currency";
 import { evaluate, excel200Mismatches } from "./engine";
 import { sourceOptions } from "./formula-label";
 import { parseContributions, toContributions } from "./formula-matrix";
@@ -32,6 +33,25 @@ for (const item of seedModel.items) {
 
 if (result.categoryRollup.length < 5) {
   console.error("Expected category rollups");
+  process.exit(1);
+}
+
+const legacy = normalizePlanningModel({
+  ...seedModel,
+  capex: { ...seedModel.capex, fxRate: 2650 } as typeof seedModel.capex & {
+    fxRate: number;
+  },
+});
+if ("fxRate" in legacy.capex) {
+  console.error("normalizePlanningModel left fxRate on capex");
+  process.exit(1);
+}
+if (evaluate(legacy).capex.totalPremium !== result.capex.totalPremium) {
+  console.error("Legacy fxRate still changes CAPEX totals");
+  process.exit(1);
+}
+if (!Number.isFinite(result.capex.totalPremium) || result.capex.totalPremium <= 0) {
+  console.error("Expected a USD CAPEX total");
   process.exit(1);
 }
 

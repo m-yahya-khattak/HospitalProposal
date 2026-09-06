@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cloneSeed, seedModel } from "@/data/seed-model";
+import { normalizePlanningModel } from "@/lib/currency";
 import { evaluate } from "@/lib/engine";
 import { createClient } from "@/lib/supabase/client";
-import { isPlanningModel } from "@/lib/sync";
+import { parsePlanningModel } from "@/lib/sync";
 import type { PlanningModel } from "@/lib/types";
 
 type Options = {
@@ -72,7 +73,8 @@ export function usePlanningModel(slug: string, options: Options = {}) {
       }
 
       const ownerOk = !requireOwner || Boolean(user && data?.owner_id === user.id);
-      if (!data || !isPlanningModel(data.model) || !ownerOk) {
+      const parsed = parsePlanningModel(data?.model);
+      if (!data || !parsed || !ownerOk) {
         setNotFound(true);
         setHydrated(true);
         return;
@@ -80,7 +82,7 @@ export function usePlanningModel(slug: string, options: Options = {}) {
 
       projectIdRef.current = data.id;
       setProjectName(data.name);
-      setModelState(data.model);
+      setModelState(parsed);
       setPersistError(null);
       setHydrated(true);
     };
@@ -101,8 +103,9 @@ export function usePlanningModel(slug: string, options: Options = {}) {
           if (writingRef.current) return;
           const next = (payload.new as { model?: unknown; name?: string } | null);
           if (next?.name) setProjectName(next.name);
-          if (isPlanningModel(next?.model)) {
-            setModelState(next.model);
+          const parsed = parsePlanningModel(next?.model);
+          if (parsed) {
+            setModelState(parsed);
             setLive(true);
           }
         },
@@ -149,7 +152,9 @@ export function usePlanningModel(slug: string, options: Options = {}) {
   const setModel = useCallback(
     (next: PlanningModel | ((prev: PlanningModel) => PlanningModel)) => {
       setModelState((prev) => {
-        const resolved = typeof next === "function" ? next(prev) : next;
+        const resolved = normalizePlanningModel(
+          typeof next === "function" ? next(prev) : next,
+        );
         persist(resolved);
         return resolved;
       });

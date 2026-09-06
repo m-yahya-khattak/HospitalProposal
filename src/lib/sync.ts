@@ -1,3 +1,4 @@
+import { normalizePlanningModel } from "@/lib/currency";
 import type { PlanningModel } from "@/lib/types";
 
 export function isPlanningModel(value: unknown): value is PlanningModel {
@@ -12,4 +13,9 @@ export function isPlanningModel(value: unknown): value is PlanningModel {
     Boolean(v.theatre) &&
     Boolean(v.capex)
   );
+}
+
+export function parsePlanningModel(value: unknown): PlanningModel | null {
+  if (!isPlanningModel(value)) return null;
+  return normalizePlanningModel(value);
 }

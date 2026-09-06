@@ -145,11 +145,12 @@ export function ItemDrawer({
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Premium</Label>
+                <Label>Premium USD</Label>
                 <NumberInput
                   className="mt-1"
                   value={item.premiumUnit}
                   min={0}
+                  suffix="USD"
                   onChange={(value) =>
                     patch((m) => {
                       m.items[itemIndex].premiumUnit = value;
@@ -158,11 +159,12 @@ export function ItemDrawer({
                 />
               </div>
               <div>
-                <Label>Budgetary</Label>
+                <Label>Budgetary USD</Label>
                 <NumberInput
                   className="mt-1"
                   value={item.budgetUnit}
                   min={0}
+                  suffix="USD"
                   onChange={(value) =>
                     patch((m) => {
                       m.items[itemIndex].budgetUnit = value;
