@@ -57,7 +57,7 @@ function interpolateSqft(beds: number, bands: { beds: number; sqftPerBed: number
   return last.sqftPerBed;
 }
 
-function evalFormula(
+export function evalFormula(
   formula: Formula,
   sources: Record<string, number>,
   itemQtyRaw: Map<string, number>,

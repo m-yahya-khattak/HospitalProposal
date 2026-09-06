@@ -2,7 +2,6 @@
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { NumberInput } from "@/components/control/number-input";
 import { formatInt, formatPercent } from "@/lib/format";
 import type { Evaluation, PlanningModel } from "@/lib/types";
@@ -140,31 +139,6 @@ export function CapacityTab({ model, result, onChange }: Props) {
       </section>
 
       <aside className="space-y-6">
-        <section className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
-          <h3 className="font-heading text-lg">Specialties</h3>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Off units drop Cath Lab, L&amp;D rooms, and related kit.
-          </p>
-          <ul className="mt-4 space-y-3">
-            {model.specialties.map((spec, index) => (
-              <li key={spec.id} className="flex items-center justify-between gap-3">
-                <Label htmlFor={`spec-${spec.id}`} className="text-sm font-normal">
-                  {spec.name}
-                </Label>
-                <Switch
-                  id={`spec-${spec.id}`}
-                  checked={spec.enabled}
-                  onCheckedChange={(checked) =>
-                    patch((m) => {
-                      m.specialties[index].enabled = Boolean(checked);
-                    })
-                  }
-                />
-              </li>
-            ))}
-          </ul>
-        </section>
-
         <section className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
           <h3 className="font-heading text-lg">Theatre rules</h3>
           <div className="mt-4 grid grid-cols-2 gap-3">

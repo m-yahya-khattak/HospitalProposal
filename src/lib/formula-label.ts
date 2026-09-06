@@ -23,6 +23,13 @@ export function sourceOptions(model: PlanningModel): SourceOption[] {
       group: "Departments",
     });
   }
+  for (const s of model.specialties) {
+    options.push({
+      id: `specialty:${s.id}`,
+      label: `${s.name} (on/off)`,
+      group: "Specialties",
+    });
+  }
   return options;
 }
 

@@ -30,7 +30,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { newId, slugify } from "@/lib/id";
-import { categoryLabel } from "@/lib/format";
+import { DepartmentPanel } from "@/components/control/department-panel";
+import { categoryLabel, formatInt } from "@/lib/format";
 import type { Evaluation, ItemCategory, PlanningModel } from "@/lib/types";
 import { Plus, Trash2 } from "lucide-react";
 
@@ -53,6 +54,8 @@ export function CatalogTab({ model, result, onChange }: Props) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState<ItemCategory>("ward-equipment");
   const [deptName, setDeptName] = useState("");
+  const [specName, setSpecName] = useState("");
+  const [openDeptId, setOpenDeptId] = useState<string | null>(null);
   const [filter, setFilter] = useState<ItemCategory | "all">("all");
 
   const patch = (fn: (m: PlanningModel) => void) => {
@@ -195,40 +198,53 @@ export function CatalogTab({ model, result, onChange }: Props) {
           <div>
             <h2 className="font-heading text-2xl">Departments</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              New departments appear as formula sources immediately.
+              Open a department to see formulas and kit tied to its beds.
             </p>
           </div>
         </div>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {model.departments.map((dept, index) => (
-            <div
-              key={dept.id}
-              className="flex items-center gap-2 rounded-full bg-teal-50 px-3 py-1 text-sm ring-1 ring-teal-100"
-            >
-              <span>{dept.name}</span>
-              <Switch
-                size="sm"
-                checked={dept.furniture}
-                onCheckedChange={(checked) =>
-                  patch((m) => {
-                    m.departments[index].furniture = Boolean(checked);
-                  })
-                }
-              />
-              <span className="text-[11px] text-muted-foreground">furn.</span>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() =>
-                  patch((m) => {
-                    m.departments = m.departments.filter((_, i) => i !== index);
-                  })
-                }
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          {model.departments.map((dept, index) => {
+            const beds =
+              result.departments.find((d) => d.id === dept.id)?.beds ?? 0;
+            return (
+              <div
+                key={dept.id}
+                className="flex items-center justify-between gap-3 rounded-xl bg-white px-4 py-3 ring-1 ring-stone-200"
               >
-                <Trash2 />
-              </Button>
-            </div>
-          ))}
+                <button
+                  type="button"
+                  className="min-w-0 flex-1 text-left"
+                  onClick={() => setOpenDeptId(dept.id)}
+                >
+                  <p className="font-medium hover:text-teal-800">{dept.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatInt(beds)} beds
+                    {dept.furniture ? " · furniture" : ""}
+                  </p>
+                </button>
+                <Switch
+                  size="sm"
+                  checked={dept.furniture}
+                  onCheckedChange={(checked) =>
+                    patch((m) => {
+                      m.departments[index].furniture = Boolean(checked);
+                    })
+                  }
+                />
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={() =>
+                    patch((m) => {
+                      m.departments = m.departments.filter((_, i) => i !== index);
+                    })
+                  }
+                >
+                  <Trash2 />
+                </Button>
+              </div>
+            );
+          })}
         </div>
         <form
           className="mt-4 flex max-w-md gap-2"
@@ -258,6 +274,85 @@ export function CatalogTab({ model, result, onChange }: Props) {
           </Button>
         </form>
       </section>
+
+      <section>
+        <div>
+          <h2 className="font-heading text-2xl">Specialties</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Service lines. Off drops Cath Lab, L&amp;D rooms, and kit that
+            depends on them.
+          </p>
+        </div>
+        <ul className="mt-4 divide-y rounded-xl bg-white ring-1 ring-stone-200">
+          {model.specialties.map((spec, index) => (
+            <li
+              key={spec.id}
+              className="flex items-center justify-between gap-3 px-4 py-3"
+            >
+              <p className="text-sm font-medium">{spec.name}</p>
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={spec.enabled}
+                  onCheckedChange={(checked) =>
+                    patch((m) => {
+                      m.specialties[index].enabled = Boolean(checked);
+                    })
+                  }
+                />
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={() =>
+                    patch((m) => {
+                      m.specialties = m.specialties.filter((_, i) => i !== index);
+                    })
+                  }
+                >
+                  <Trash2 />
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+        <form
+          className="mt-4 flex max-w-md gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const trimmed = specName.trim();
+            if (!trimmed) return;
+            const base = slugify(trimmed);
+            patch((m) => {
+              const taken = new Set(m.specialties.map((s) => s.id));
+              let id = base;
+              let n = 2;
+              while (taken.has(id)) {
+                id = `${base}-${n}`;
+                n += 1;
+              }
+              m.specialties.push({ id, name: trimmed, enabled: true });
+            });
+            setSpecName("");
+          }}
+        >
+          <Input
+            placeholder="Add specialty"
+            value={specName}
+            onChange={(e) => setSpecName(e.target.value)}
+          />
+          <Button type="submit" variant="outline">
+            Add
+          </Button>
+        </form>
+      </section>
+
+      {openDeptId ? (
+        <DepartmentPanel
+          deptId={openDeptId}
+          model={model}
+          result={result}
+          onClose={() => setOpenDeptId(null)}
+        />
+      ) : null}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
