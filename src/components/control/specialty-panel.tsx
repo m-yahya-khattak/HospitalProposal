@@ -58,7 +58,7 @@ export function SpecialtyPanel({
       <aside className="relative flex h-full w-full max-w-lg flex-col bg-white shadow-xl">
         <div className="flex items-start justify-between gap-3 border-b px-5 py-4">
           <div>
-            <p className="text-[11px] font-medium tracking-[0.18em] text-teal-800 uppercase">
+            <p className="text-xs font-medium text-teal-800">
               Specialty
             </p>
             <h2 className="font-heading text-2xl tracking-tight">{spec.name}</h2>
@@ -74,9 +74,9 @@ export function SpecialtyPanel({
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
           <div className="rounded-xl bg-stone-50 p-3">
-            <p className="text-sm font-medium">Assign catalog item</p>
+            <p className="text-sm font-medium">Assign item</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Adds “n if {spec.name} is on” to that item’s formulas.
+              Adds “n if {spec.name} is on” to that item.
             </p>
             <div className="mt-3 grid grid-cols-[1fr_72px_auto] items-end gap-2">
               <div>
@@ -132,8 +132,8 @@ export function SpecialtyPanel({
 
           {lines.length === 0 ? (
             <p className="mt-6 text-sm text-muted-foreground">
-              Nothing assigned yet. Add an item above, or in Formulas use “
-              {spec.name} (on/off)”.
+              Nothing assigned yet. Add an item above, or set a rule on the item
+              using “{spec.name} (on/off)”.
             </p>
           ) : (
             <ul className="mt-5 grid gap-3">

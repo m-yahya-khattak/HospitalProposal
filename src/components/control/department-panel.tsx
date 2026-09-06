@@ -44,7 +44,7 @@ export function DepartmentPanel({
       <aside className="relative flex h-full w-full max-w-lg flex-col bg-white shadow-xl">
         <div className="flex items-start justify-between gap-3 border-b px-5 py-4">
           <div>
-            <p className="text-[11px] font-medium tracking-[0.18em] text-teal-800 uppercase">
+            <p className="text-xs font-medium text-teal-800">
               Department
             </p>
             <h2 className="font-heading text-2xl tracking-tight">{dept.name}</h2>
@@ -61,8 +61,8 @@ export function DepartmentPanel({
         <div className="flex-1 overflow-y-auto px-5 py-4">
           {lines.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No catalog items point at this department yet. In Formulas, add a
-              line that uses “{dept.name} beds”.
+              No items use this department yet. Open an item and set a quantity
+              against “{dept.name} beds”.
             </p>
           ) : (
             <ul className="grid gap-3">

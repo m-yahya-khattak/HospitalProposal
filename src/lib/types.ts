@@ -131,6 +131,13 @@ export type CapexLineResult = {
   usdBudget: number;
 };
 
+export type CategoryRollup = {
+  id: string;
+  qty: number;
+  premium: number;
+  budget: number;
+};
+
 export type Evaluation = {
   totalBeds: number;
   shareTotal: number;
@@ -151,6 +158,7 @@ export type Evaluation = {
   items: ItemResult[];
   equipmentUnits: number;
   furnitureUnits: number;
+  categoryRollup: CategoryRollup[];
   bomPremium: number;
   bomBudget: number;
   sqftPerBed: number;

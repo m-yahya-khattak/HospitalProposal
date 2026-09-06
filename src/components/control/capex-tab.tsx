@@ -31,11 +31,11 @@ export function CapexTab({ model, result, onChange }: Props) {
     <div className="grid gap-8 lg:grid-cols-[1fr_1fr]">
       <section className="space-y-6">
         <div>
-          <h2 className="font-heading text-2xl">Area & rates</h2>
+          <h2 className="text-xl font-medium tracking-tight">Area & rates</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Square feet per bed interpolates between these bands. Construction
-            is rate × area. Medical equipment uses the equipment bill of
-            quantities, not a flat sq.ft rate.
+            is rate × area. Medical equipment uses catalog totals, not a flat
+            sq.ft rate.
           </p>
         </div>
 
@@ -140,7 +140,7 @@ export function CapexTab({ model, result, onChange }: Props) {
       </section>
 
       <section>
-        <h2 className="font-heading text-2xl">Live CAPEX</h2>
+        <h2 className="text-xl font-medium tracking-tight">Live CAPEX</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           {formatInt(result.areaSqft)} sq.ft · {formatInt(result.sqftPerBed)}{" "}
           sq.ft/bed

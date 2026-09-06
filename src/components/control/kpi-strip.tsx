@@ -1,57 +1,107 @@
 "use client";
 
-import { formatCompact, formatInt, formatTsh, formatUsd } from "@/lib/format";
+import { categoryLabel, formatInt, formatTsh, formatUsd } from "@/lib/format";
 import type { Evaluation } from "@/lib/types";
 
-function Cell({
+type Props = {
+  result: Evaluation;
+  onSelectCategory?: (id: string) => void;
+  onSelectTheatres?: () => void;
+};
+
+function SizeCell({
   label,
   value,
   hint,
+  onClick,
 }: {
   label: string;
   value: string;
   hint?: string;
+  onClick?: () => void;
 }) {
-  return (
-    <div className="min-w-0">
-      <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-        {label}
-      </p>
-      <p className="mt-0.5 font-heading text-xl leading-none text-foreground tabular-nums">
+  const inner = (
+    <>
+      <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
+      <p className="mt-0.5 font-heading text-xl leading-none tabular-nums">
         {value}
       </p>
       {hint ? (
         <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
       ) : null}
-    </div>
+    </>
+  );
+  if (!onClick) return <div className="min-w-0">{inner}</div>;
+  return (
+    <button
+      type="button"
+      className="min-w-0 rounded-lg text-left hover:text-teal-800"
+      onClick={onClick}
+    >
+      {inner}
+    </button>
   );
 }
 
-export function KpiStrip({ result }: { result: Evaluation }) {
+export function KpiStrip({ result, onSelectCategory, onSelectTheatres }: Props) {
+  const theatres = result.theatres;
+  const theatreHint = [
+    `${theatres.ot} OT`,
+    `${theatres.minorOt} minor`,
+    `${theatres.cathLab} cath`,
+    `${theatres.labourDelivery} L&D`,
+  ].join(" · ");
+
   return (
-    <div className="grid grid-cols-2 gap-4 border-y bg-teal-50/40 px-4 py-3 md:grid-cols-3 lg:grid-cols-6 lg:px-6">
-      <Cell label="Beds" value={formatInt(result.totalBeds)} />
-      <Cell
-        label="Theatres"
-        value={formatInt(result.theatres.totalRooms)}
-        hint={`${result.theatres.ot} OT · ${result.theatres.minorOt} minor`}
-      />
-      <Cell label="Equipment" value={formatInt(result.equipmentUnits)} hint="units" />
-      <Cell
-        label="Area"
-        value={formatInt(result.areaSqft)}
-        hint="sq.ft"
-      />
-      <Cell
-        label="Premium"
-        value={formatTsh(result.bomPremium).replace("TSH ", "")}
-        hint={`${formatUsd(result.capex.totalUsdPremium)} CAPEX`}
-      />
-      <Cell
-        label="Budgetary"
-        value={formatCompact(result.bomBudget)}
-        hint={`${formatUsd(result.capex.totalUsdBudget)} CAPEX`}
-      />
+    <div className="grid gap-4 border-y bg-white px-4 py-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] lg:px-6">
+      <div className="grid grid-cols-3 gap-4">
+        <SizeCell label="Beds" value={formatInt(result.totalBeds)} />
+        <SizeCell
+          label="Theatres"
+          value={formatInt(theatres.totalRooms)}
+          hint={theatreHint}
+          onClick={onSelectTheatres}
+        />
+        <SizeCell
+          label="Area"
+          value={formatInt(result.areaSqft)}
+          hint="sq.ft"
+        />
+      </div>
+      <div className="flex flex-wrap items-end gap-x-5 gap-y-3">
+        {result.categoryRollup.map((row) => (
+          <button
+            key={row.id}
+            type="button"
+            className="min-w-0 text-left hover:text-teal-800"
+            onClick={() => onSelectCategory?.(row.id)}
+          >
+            <p className="text-[11px] font-medium text-muted-foreground">
+              {categoryLabel(row.id)}
+            </p>
+            <p className="mt-0.5 text-sm tabular-nums">
+              {formatInt(row.qty)}
+              <span className="ml-1 text-xs text-muted-foreground">
+                {formatTsh(row.premium).replace("TSH ", "")}
+              </span>
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              budget {formatTsh(row.budget).replace("TSH ", "")}
+            </p>
+          </button>
+        ))}
+        <div className="min-w-0 border-l border-stone-200 pl-5">
+          <p className="text-[11px] font-medium text-muted-foreground">
+            Total CAPEX
+          </p>
+          <p className="mt-0.5 font-heading text-xl leading-none tabular-nums">
+            {formatUsd(result.capex.totalUsdPremium)}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            budget {formatUsd(result.capex.totalUsdBudget)}
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

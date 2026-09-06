@@ -1,6 +1,8 @@
+import { modelCategories } from "@/lib/format";
 import type {
   CapexLineResult,
   CatalogItem,
+  CategoryRollup,
   DeptResult,
   Evaluation,
   Formula,
@@ -176,20 +178,27 @@ export function evaluate(model: PlanningModel): Evaluation {
     };
   });
 
-  const priced = items.filter(
-    (i) =>
-      i.category === "furniture" ||
-      i.category === "ward-equipment" ||
-      i.category === "theatre-equipment",
-  );
-  const equipmentUnits = priced
-    .filter((i) => i.category !== "furniture")
+  const enabledItems = items.filter((i) => i.enabled);
+  const equipmentUnits = enabledItems
+    .filter(
+      (i) =>
+        i.category === "ward-equipment" || i.category === "theatre-equipment",
+    )
     .reduce((s, i) => s + i.qty, 0);
-  const furnitureUnits = priced
+  const furnitureUnits = enabledItems
     .filter((i) => i.category === "furniture")
     .reduce((s, i) => s + i.qty, 0);
-  const bomPremium = priced.reduce((s, i) => s + i.premiumCost, 0);
-  const bomBudget = priced.reduce((s, i) => s + i.budgetCost, 0);
+  const categoryRollup: CategoryRollup[] = modelCategories(model).map((id) => {
+    const rows = enabledItems.filter((i) => i.category === id);
+    return {
+      id,
+      qty: rows.reduce((s, i) => s + i.qty, 0),
+      premium: rows.reduce((s, i) => s + i.premiumCost, 0),
+      budget: rows.reduce((s, i) => s + i.budgetCost, 0),
+    };
+  });
+  const bomPremium = enabledItems.reduce((s, i) => s + i.premiumCost, 0);
+  const bomBudget = enabledItems.reduce((s, i) => s + i.budgetCost, 0);
 
   const sqftPerBed = interpolateSqft(model.totalBeds, model.capex.areaBands);
   const areaSqft = model.totalBeds * sqftPerBed;
@@ -237,6 +246,7 @@ export function evaluate(model: PlanningModel): Evaluation {
     items,
     equipmentUnits,
     furnitureUnits,
+    categoryRollup,
     bomPremium,
     bomBudget,
     sqftPerBed,

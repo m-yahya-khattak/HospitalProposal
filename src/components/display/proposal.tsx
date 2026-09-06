@@ -50,10 +50,12 @@ function Kpi({
   label,
   value,
   unit,
+  hint,
 }: {
   label: string;
   value: string;
   unit?: string;
+  hint?: string;
 }) {
   return (
     <div className="min-w-0 border-t border-teal-800/20 pt-4">
@@ -64,6 +66,9 @@ function Kpi({
           <span className="ml-1 text-base font-sans text-stone-500">{unit}</span>
         ) : null}
       </p>
+      {hint ? (
+        <p className="mt-2 text-xs text-stone-500">{hint}</p>
+      ) : null}
     </div>
   );
 }
@@ -168,23 +173,22 @@ function ProposalBody({
         <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-5">
           <Kpi label="Planned beds" value={formatInt(result.totalBeds)} />
           <Kpi
-            label="Critical care + ER"
-            value={formatInt(result.criticalCareBeds)}
-            unit="beds"
-          />
-          <Kpi
             label="Theatres / procedure"
             value={formatInt(result.theatres.totalRooms)}
-          />
-          <Kpi
-            label="Major equipment"
-            value={formatInt(result.equipmentUnits)}
-            unit="units"
+            hint={`${formatInt(result.theatres.ot)} OT · ${formatInt(result.theatres.minorOt)} minor · ${formatInt(result.theatres.cathLab)} cath · ${formatInt(result.theatres.labourDelivery)} L&D`}
           />
           <Kpi
             label="Indicative area"
             value={formatInt(result.areaSqft)}
             unit="sq.ft"
+          />
+          <Kpi
+            label="Premium CAPEX"
+            value={formatUsd(result.capex.totalUsdPremium)}
+          />
+          <Kpi
+            label="Budgetary CAPEX"
+            value={formatUsd(result.capex.totalUsdBudget)}
           />
         </div>
 

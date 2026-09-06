@@ -4,8 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CapacityTab } from "@/components/control/capacity-tab";
 import { CapexTab } from "@/components/control/capex-tab";
-import { CatalogTab } from "@/components/control/catalog-tab";
-import { FormulasTab } from "@/components/control/formulas-tab";
+import { ItemsTab } from "@/components/control/items-tab";
 import { KpiStrip } from "@/components/control/kpi-strip";
 import { ProjectPanel } from "@/components/control/project-panel";
 import { Button } from "@/components/ui/button";
@@ -36,6 +35,7 @@ export function Studio({
     notFound,
   } = planning;
   const [tab, setTab] = useState("capacity");
+  const [itemFilter, setItemFilter] = useState("all");
   const [panelOpen, setPanelOpen] = useState(initialPanelOpen || !slug);
   const router = useRouter();
 
@@ -58,7 +58,7 @@ export function Studio({
       <header className="sticky top-0 z-20 border-b bg-white/90 backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-6">
           <div>
-            <p className="text-[11px] font-medium tracking-[0.18em] text-teal-800 uppercase">
+            <p className="text-xs font-medium text-teal-800">
               Project planning
             </p>
             <h1 className="font-heading text-2xl tracking-tight">
@@ -118,7 +118,16 @@ export function Studio({
             Could not save to Supabase: {persistError}
           </p>
         ) : null}
-        {hasProject && !missing ? <KpiStrip result={result} /> : null}
+        {hasProject && !missing ? (
+          <KpiStrip
+            result={result}
+            onSelectTheatres={() => setTab("capacity")}
+            onSelectCategory={(id) => {
+              setItemFilter(id);
+              setTab("items");
+            }}
+          />
+        ) : null}
       </header>
 
       <main className="px-4 py-6 lg:px-6">
@@ -150,18 +159,20 @@ export function Studio({
             >
               <TabsList variant="line" className="w-full justify-start">
                 <TabsTrigger value="capacity">Capacity</TabsTrigger>
-                <TabsTrigger value="catalog">Catalog</TabsTrigger>
-                <TabsTrigger value="formulas">Formulas</TabsTrigger>
+                <TabsTrigger value="items">Items</TabsTrigger>
                 <TabsTrigger value="capex">CAPEX</TabsTrigger>
               </TabsList>
               <TabsContent value="capacity" className="pt-6">
                 <CapacityTab model={model} result={result} onChange={setModel} />
               </TabsContent>
-              <TabsContent value="catalog" className="pt-6">
-                <CatalogTab model={model} result={result} onChange={setModel} />
-              </TabsContent>
-              <TabsContent value="formulas" className="pt-6">
-                <FormulasTab model={model} result={result} onChange={setModel} />
+              <TabsContent value="items" className="pt-6">
+                <ItemsTab
+                  model={model}
+                  result={result}
+                  onChange={setModel}
+                  filter={itemFilter}
+                  onFilterChange={setItemFilter}
+                />
               </TabsContent>
               <TabsContent value="capex" className="pt-6">
                 <CapexTab model={model} result={result} onChange={setModel} />

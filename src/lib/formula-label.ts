@@ -4,22 +4,39 @@ import type { Formula, PlanningModel } from "@/lib/types";
 export type SourceOption = {
   id: string;
   label: string;
+  short: string;
   group: string;
 };
 
 export function sourceOptions(model: PlanningModel): SourceOption[] {
   const options: SourceOption[] = [
-    { id: "totalBeds", label: "Total beds", group: "Hospital" },
-    { id: "furnitureBeds", label: "Furniture beds", group: "Hospital" },
-    { id: "ot", label: "Operation theatres", group: "Theatres" },
-    { id: "minorOt", label: "Minor theatres", group: "Theatres" },
-    { id: "cathLab", label: "Cath lab", group: "Theatres" },
-    { id: "labourDelivery", label: "Labour & delivery rooms", group: "Theatres" },
+    { id: "totalBeds", label: "Total beds", short: "Beds", group: "Hospital" },
+    {
+      id: "furnitureBeds",
+      label: "Furniture beds",
+      short: "Furn.",
+      group: "Hospital",
+    },
+    { id: "ot", label: "Operation theatres", short: "OT", group: "Theatres" },
+    {
+      id: "minorOt",
+      label: "Minor theatres",
+      short: "Minor",
+      group: "Theatres",
+    },
+    { id: "cathLab", label: "Cath lab", short: "Cath", group: "Theatres" },
+    {
+      id: "labourDelivery",
+      label: "Labour & delivery rooms",
+      short: "L&D",
+      group: "Theatres",
+    },
   ];
   for (const d of model.departments) {
     options.push({
       id: deptSource(d.id),
       label: `${d.name} beds`,
+      short: d.name,
       group: "Departments",
     });
   }
@@ -27,6 +44,7 @@ export function sourceOptions(model: PlanningModel): SourceOption[] {
     options.push({
       id: `specialty:${s.id}`,
       label: `${s.name} (on/off)`,
+      short: s.name,
       group: "Specialties",
     });
   }
@@ -46,12 +64,16 @@ export function formulaPreview(
         : `${formula.n} × ${name(formula.source)}`;
     case "perSource":
       return `1 per ${formula.n} ${name(formula.source)}`;
-    case "oneIfExists":
+    case "oneIfExists": {
+      const option = sources.find((s) => s.id === formula.source);
+      const existsWord =
+        option?.group === "Specialties" ? "is on" : "exist";
       return formula.n === 1
-        ? `1 if ${name(formula.source)} exist`
-        : `${formula.n} if ${name(formula.source)} exist`;
+        ? `1 if ${name(formula.source)} ${existsWord}`
+        : `${formula.n} if ${name(formula.source)} ${existsWord}`;
+    }
     case "constant":
-      return `Fixed ${formula.value}`;
+      return `Always ${formula.value}`;
     case "sum":
       return `Sum of ${formula.itemIds.length} items`;
   }
