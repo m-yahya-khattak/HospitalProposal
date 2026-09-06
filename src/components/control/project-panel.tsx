@@ -93,7 +93,7 @@ export function ProjectPanel({
                   className="mt-1 h-10"
                   value={name}
                   onChange={(event) => setName(event.target.value)}
-                  placeholder="Dar es Salaam hospital"
+                  placeholder="St Mary's Hospital"
                   required
                   autoFocus
                 />

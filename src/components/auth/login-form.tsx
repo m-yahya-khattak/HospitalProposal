@@ -40,10 +40,10 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
   };
 
   return (
-    <div className="flex min-h-full items-center justify-center bg-stone-50 px-4 py-16">
+    <div className="flex min-h-dvh items-center justify-center bg-[#f7f6f3] px-4 py-16">
       <div className="w-full max-w-md rounded-2xl bg-white p-8 ring-1 ring-stone-200">
         <p className="text-[11px] font-medium tracking-[0.2em] text-teal-800 uppercase">
-          Project planning
+          St Mary's Hospital
         </p>
         <h1 className="mt-2 font-heading text-3xl tracking-tight text-stone-900">
           Control studio

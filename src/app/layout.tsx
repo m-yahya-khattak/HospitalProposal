@@ -15,7 +15,7 @@ const newsreader = Newsreader({
 });
 
 export const metadata: Metadata = {
-  title: "Hospital Capacity & Capital Plan",
+  title: "St Mary's Hospital",
   description:
     "Interactive hospital planning: beds, theatres, equipment and CAPEX.",
 };
@@ -24,10 +24,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${newsreader.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${newsreader.variable} min-h-dvh antialiased`}
     >
-      <body className="min-h-full bg-background font-sans text-foreground">
-        <TooltipProvider>{children}</TooltipProvider>
+      <body className="min-h-dvh bg-[#f7f6f3] font-sans text-foreground">
+        <TooltipProvider>
+          <div className="min-h-dvh">{children}</div>
+        </TooltipProvider>
       </body>
     </html>
   );

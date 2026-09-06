@@ -14,13 +14,13 @@ export function ProjectIndex() {
   const { projects, hydrated, error } = usePublicProjects();
 
   return (
-    <div className="min-h-full bg-[#f7f6f3] text-stone-900">
+    <div className="min-h-dvh bg-[#f7f6f3] text-stone-900">
       <div className="mx-auto max-w-3xl px-6 py-16">
         <p className="text-[11px] font-medium tracking-[0.22em] text-teal-800 uppercase">
           Project planning
         </p>
         <h1 className="mt-3 font-heading text-4xl tracking-tight md:text-5xl">
-          Hospital proposals
+          St Mary's Hospital
         </h1>
         <p className="mt-3 max-w-xl text-stone-600">
           Open a public project display. Operators sign in to create and edit

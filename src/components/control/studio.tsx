@@ -54,12 +54,12 @@ export function Studio({
   const missing = hasProject && hydrated && notFound;
 
   return (
-    <div className="min-h-full bg-stone-50 text-stone-900">
+    <div className="min-h-dvh bg-[#f7f6f3] text-stone-900">
       <header className="sticky top-0 z-20 border-b bg-white/90 backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-6">
           <div>
             <p className="text-[11px] font-medium tracking-[0.18em] text-teal-800 uppercase">
-              Project planning
+              St Mary's Hospital
             </p>
             <h1 className="font-heading text-2xl tracking-tight">
               {missing
