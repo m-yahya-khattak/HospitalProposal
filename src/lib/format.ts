@@ -61,12 +61,16 @@ export function categoryLabel(category: string) {
   }
 }
 
+export function isCustomCategory(id: string) {
+  return !(DEFAULT_CATEGORIES as readonly string[]).includes(id);
+}
+
 export function modelCategories(model: { categories?: string[]; items: { category: string }[] }) {
   const seen = new Set<string>();
   const list: string[] = [];
   for (const id of [
-    ...(model.categories ?? []),
     ...DEFAULT_CATEGORIES,
+    ...(model.categories ?? []),
     ...model.items.map((item) => item.category),
   ]) {
     if (!id || seen.has(id)) continue;

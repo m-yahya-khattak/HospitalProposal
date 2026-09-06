@@ -26,7 +26,12 @@ import { Switch } from "@/components/ui/switch";
 import { newId, slugify } from "@/lib/id";
 import { sourceOptions } from "@/lib/formula-label";
 import { formulaSentence } from "@/lib/formula-matrix";
-import { categoryLabel, formatInt, modelCategories } from "@/lib/format";
+import {
+  categoryLabel,
+  formatInt,
+  isCustomCategory,
+  modelCategories,
+} from "@/lib/format";
 import type { Evaluation, Formula, PlanningModel } from "@/lib/types";
 import { LayoutGrid, List, Plus, Trash2 } from "lucide-react";
 
@@ -186,16 +191,44 @@ export function ItemsTab({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {(["all", ...categories] as const).map((id) => (
-          <Button
-            key={id}
-            size="sm"
-            variant={filter === id ? "default" : "outline"}
-            onClick={() => onFilterChange(id)}
-          >
-            {id === "all" ? "All" : categoryLabel(id)}
-          </Button>
-        ))}
+        {(["all", ...categories] as const).map((id) => {
+          const custom = id !== "all" && isCustomCategory(id);
+          return (
+            <div key={id} className="flex items-center">
+              <Button
+                size="sm"
+                variant={filter === id ? "default" : "outline"}
+                className={custom ? "rounded-r-none" : undefined}
+                onClick={() => onFilterChange(id)}
+              >
+                {id === "all" ? "All" : categoryLabel(id)}
+              </Button>
+              {custom ? (
+                <Button
+                  size="sm"
+                  variant={filter === id ? "default" : "outline"}
+                  className="rounded-l-none border-l-0 px-1.5"
+                  aria-label={`Remove ${categoryLabel(id)}`}
+                  onClick={() => {
+                    patch((m) => {
+                      m.categories = (m.categories ?? []).filter(
+                        (category) => category !== id,
+                      );
+                      for (const item of m.items) {
+                        if (item.category === id) {
+                          item.category = "ward-equipment";
+                        }
+                      }
+                    });
+                    if (filter === id) onFilterChange("all");
+                  }}
+                >
+                  <Trash2 />
+                </Button>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
       <form
         className="flex max-w-md gap-2"

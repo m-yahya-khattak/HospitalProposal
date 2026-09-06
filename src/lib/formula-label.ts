@@ -10,13 +10,6 @@ export type SourceOption = {
 
 export function sourceOptions(model: PlanningModel): SourceOption[] {
   const options: SourceOption[] = [
-    { id: "totalBeds", label: "Total beds", short: "Beds", group: "Hospital" },
-    {
-      id: "furnitureBeds",
-      label: "Furniture beds",
-      short: "Furn.",
-      group: "Hospital",
-    },
     { id: "ot", label: "Operation theatres", short: "OT", group: "Theatres" },
     {
       id: "minorOt",
@@ -55,8 +48,12 @@ export function formulaPreview(
   formula: Formula,
   sources: SourceOption[],
 ): string {
+  const hidden: Record<string, string> = {
+    totalBeds: "total beds",
+    furnitureBeds: "furnished beds",
+  };
   const name = (id: string) =>
-    sources.find((s) => s.id === id)?.label ?? id;
+    sources.find((s) => s.id === id)?.label ?? hidden[id] ?? id;
   switch (formula.type) {
     case "timesSource":
       return formula.n === 1
@@ -80,5 +77,5 @@ export function formulaPreview(
 }
 
 export function emptyFormula(): Formula {
-  return { type: "timesSource", source: "totalBeds", n: 1 };
+  return { type: "timesSource", source: "ot", n: 1 };
 }
