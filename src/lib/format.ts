@@ -1,3 +1,5 @@
+import { DEFAULT_CATEGORIES } from "@/lib/types";
+
 export function formatInt(n: number) {
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(
     Math.round(n),
@@ -53,6 +55,23 @@ export function categoryLabel(category: string) {
     case "laboratory":
       return "Laboratory";
     default:
-      return category;
+      return category
+        .replace(/[-_]+/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase());
   }
+}
+
+export function modelCategories(model: { categories?: string[]; items: { category: string }[] }) {
+  const seen = new Set<string>();
+  const list: string[] = [];
+  for (const id of [
+    ...(model.categories ?? []),
+    ...DEFAULT_CATEGORIES,
+    ...model.items.map((item) => item.category),
+  ]) {
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    list.push(id);
+  }
+  return list;
 }

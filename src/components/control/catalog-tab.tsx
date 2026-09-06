@@ -31,17 +31,10 @@ import {
 } from "@/components/ui/table";
 import { newId, slugify } from "@/lib/id";
 import { DepartmentPanel } from "@/components/control/department-panel";
-import { categoryLabel, formatInt } from "@/lib/format";
-import type { Evaluation, ItemCategory, PlanningModel } from "@/lib/types";
+import { SpecialtyPanel } from "@/components/control/specialty-panel";
+import { categoryLabel, formatInt, modelCategories } from "@/lib/format";
+import type { Evaluation, PlanningModel } from "@/lib/types";
 import { Plus, Trash2 } from "lucide-react";
-
-const CATEGORIES: ItemCategory[] = [
-  "furniture",
-  "ward-equipment",
-  "theatre-equipment",
-  "diagnostic",
-  "laboratory",
-];
 
 type Props = {
   model: PlanningModel;
@@ -52,11 +45,13 @@ type Props = {
 export function CatalogTab({ model, result, onChange }: Props) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [category, setCategory] = useState<ItemCategory>("ward-equipment");
+  const [category, setCategory] = useState("ward-equipment");
   const [deptName, setDeptName] = useState("");
   const [specName, setSpecName] = useState("");
+  const [categoryName, setCategoryName] = useState("");
   const [openDeptId, setOpenDeptId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<ItemCategory | "all">("all");
+  const [openSpecId, setOpenSpecId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<string>("all");
 
   const patch = (fn: (m: PlanningModel) => void) => {
     const next = structuredClone(model);
@@ -64,6 +59,7 @@ export function CatalogTab({ model, result, onChange }: Props) {
     onChange(next);
   };
 
+  const categories = modelCategories(model);
   const visibleItems = useMemo(
     () =>
       model.items
@@ -94,7 +90,7 @@ export function CatalogTab({ model, result, onChange }: Props) {
           </Button>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
-          {(["all", ...CATEGORIES] as const).map((c) => (
+          {(["all", ...categories] as const).map((c) => (
             <Button
               key={c}
               size="sm"
@@ -105,6 +101,32 @@ export function CatalogTab({ model, result, onChange }: Props) {
             </Button>
           ))}
         </div>
+        <form
+          className="mt-3 flex max-w-md gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const trimmed = categoryName.trim();
+            if (!trimmed) return;
+            const id = slugify(trimmed);
+            patch((m) => {
+              const next = modelCategories(m);
+              if (!next.includes(id) && !m.categories?.includes(id)) {
+                m.categories = [...(m.categories ?? []), id];
+              }
+            });
+            setCategory(id);
+            setCategoryName("");
+          }}
+        >
+          <Input
+            placeholder="Add category"
+            value={categoryName}
+            onChange={(event) => setCategoryName(event.target.value)}
+          />
+          <Button type="submit" variant="outline">
+            Add
+          </Button>
+        </form>
         <div className="mt-4 overflow-hidden rounded-xl ring-1 ring-foreground/10">
           <Table>
             <TableHeader>
@@ -289,7 +311,18 @@ export function CatalogTab({ model, result, onChange }: Props) {
               key={spec.id}
               className="flex items-center justify-between gap-3 px-4 py-3"
             >
-              <p className="text-sm font-medium">{spec.name}</p>
+              <button
+                type="button"
+                className="min-w-0 flex-1 text-left"
+                onClick={() => setOpenSpecId(spec.id)}
+              >
+                <p className="text-sm font-medium hover:text-teal-800">
+                  {spec.name}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Open to assign equipment
+                </p>
+              </button>
               <div className="flex items-center gap-2">
                 <Switch
                   checked={spec.enabled}
@@ -353,6 +386,15 @@ export function CatalogTab({ model, result, onChange }: Props) {
           onClose={() => setOpenDeptId(null)}
         />
       ) : null}
+      {openSpecId ? (
+        <SpecialtyPanel
+          specialtyId={openSpecId}
+          model={model}
+          result={result}
+          onChange={onChange}
+          onClose={() => setOpenSpecId(null)}
+        />
+      ) : null}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
@@ -376,14 +418,14 @@ export function CatalogTab({ model, result, onChange }: Props) {
               <Select
                 value={category}
                 onValueChange={(value) => {
-                  if (value) setCategory(value as ItemCategory);
+                  if (value) setCategory(value);
                 }}
               >
                 <SelectTrigger className="mt-1 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {CATEGORIES.map((c) => (
+                  {categories.map((c) => (
                     <SelectItem key={c} value={c}>
                       {categoryLabel(c)}
                     </SelectItem>

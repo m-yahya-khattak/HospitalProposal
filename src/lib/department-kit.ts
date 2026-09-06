@@ -11,6 +11,18 @@ export function formulaUsesDept(formula: Formula, deptId: string) {
   return formulaSourceId(formula) === deptSource(deptId);
 }
 
+export function specialtySourceIds(specialtyId: string) {
+  const ids = [`specialty:${specialtyId}`];
+  if (specialtyId === "cath-lab") ids.push("cathLab");
+  if (specialtyId === "labour-delivery") ids.push("labourDelivery");
+  return ids;
+}
+
+export function formulaUsesSpecialty(formula: Formula, specialtyId: string) {
+  const source = formulaSourceId(formula);
+  return Boolean(source && specialtySourceIds(specialtyId).includes(source));
+}
+
 export type DepartmentKitLine = {
   item: CatalogItem;
   formula: Formula;
@@ -31,6 +43,33 @@ export function departmentKit(
     const itemQty = result.items.find((row) => row.id === item.id)?.qty ?? 0;
     for (const formula of item.contributions) {
       if (!formulaUsesDept(formula, deptId)) continue;
+      lines.push({
+        item,
+        formula,
+        formulaLabel: formulaPreview(formula, sources),
+        fromThisDept: evalFormula(formula, result.sources, new Map()),
+        itemQty,
+      });
+    }
+  }
+
+  return lines;
+}
+
+export type SpecialtyKitLine = DepartmentKitLine;
+
+export function specialtyKit(
+  model: PlanningModel,
+  result: Evaluation,
+  specialtyId: string,
+): SpecialtyKitLine[] {
+  const sources = sourceOptions(model);
+  const lines: SpecialtyKitLine[] = [];
+
+  for (const item of model.items) {
+    const itemQty = result.items.find((row) => row.id === item.id)?.qty ?? 0;
+    for (const formula of item.contributions) {
+      if (!formulaUsesSpecialty(formula, specialtyId)) continue;
       lines.push({
         item,
         formula,

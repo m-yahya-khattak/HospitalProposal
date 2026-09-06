@@ -11,12 +11,15 @@ export type Formula =
   | { type: "constant"; value: number }
   | { type: "sum"; itemIds: string[] };
 
-export type ItemCategory =
-  | "furniture"
-  | "ward-equipment"
-  | "theatre-equipment"
-  | "diagnostic"
-  | "laboratory";
+export type ItemCategory = string;
+
+export const DEFAULT_CATEGORIES = [
+  "furniture",
+  "ward-equipment",
+  "theatre-equipment",
+  "diagnostic",
+  "laboratory",
+] as const;
 
 export type Department = {
   id: string;
@@ -79,6 +82,7 @@ export type PlanningModel = {
   rounding: "ceil";
   departments: Department[];
   specialties: Specialty[];
+  categories?: string[];
   theatre: TheatreRules;
   items: CatalogItem[];
   capex: CapexConfig;
