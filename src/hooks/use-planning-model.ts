@@ -7,21 +7,32 @@ import { createClient } from "@/lib/supabase/client";
 import { isPlanningModel } from "@/lib/sync";
 import type { PlanningModel } from "@/lib/types";
 
-const ROW_ID = "default";
+type Options = {
+  requireOwner?: boolean;
+};
 
-export function usePlanningModel() {
+export function usePlanningModel(slug: string, options: Options = {}) {
+  const requireOwner = options.requireOwner ?? false;
   const [model, setModelState] = useState<PlanningModel>(seedModel);
+  const [projectName, setProjectName] = useState(slug);
   const [hydrated, setHydrated] = useState(false);
+  const [notFound, setNotFound] = useState(false);
   const [live, setLive] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [persistError, setPersistError] = useState<string | null>(null);
   const writingRef = useRef(false);
   const persistTimer = useRef<number | undefined>(undefined);
   const supabaseRef = useRef<ReturnType<typeof createClient>>(null);
+  const projectIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
     supabaseRef.current = supabase;
+    setHydrated(false);
+    setNotFound(false);
+    setLive(false);
+    projectIdRef.current = null;
+
     if (!supabase) {
       setPersistError(
         "Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY to .env.local.",
@@ -40,43 +51,50 @@ export function usePlanningModel() {
       setUserEmail(user?.email ?? null);
 
       const { data, error } = await supabase
-        .from("planning_models")
-        .select("model")
-        .eq("id", ROW_ID)
+        .from("planning_projects")
+        .select("id, name, owner_id, model")
+        .eq("slug", slug)
         .maybeSingle();
 
       if (cancelled) return;
       if (error) {
         setPersistError(error.message);
-      } else if (data?.model && isPlanningModel(data.model)) {
-        setModelState(data.model);
-        setPersistError(null);
-      } else if (user) {
-        const { error: insertError } = await supabase
-          .from("planning_models")
-          .upsert({ id: ROW_ID, model: seedModel });
-        if (insertError) setPersistError(insertError.message);
+        setHydrated(true);
+        return;
       }
+
+      const ownerOk = !requireOwner || Boolean(user && data?.owner_id === user.id);
+      if (!data || !isPlanningModel(data.model) || !ownerOk) {
+        setNotFound(true);
+        setHydrated(true);
+        return;
+      }
+
+      projectIdRef.current = data.id;
+      setProjectName(data.name);
+      setModelState(data.model);
+      setPersistError(null);
       setHydrated(true);
     };
 
     void load();
 
     const channel = supabase
-      .channel("planning-default")
+      .channel(`planning-project-${slug}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
-          table: "planning_models",
-          filter: `id=eq.${ROW_ID}`,
+          table: "planning_projects",
+          filter: `slug=eq.${slug}`,
         },
         (payload) => {
           if (writingRef.current) return;
-          const next = (payload.new as { model?: unknown } | null)?.model;
-          if (isPlanningModel(next)) {
-            setModelState(next);
+          const next = (payload.new as { model?: unknown; name?: string } | null);
+          if (next?.name) setProjectName(next.name);
+          if (isPlanningModel(next?.model)) {
+            setModelState(next.model);
             setLive(true);
           }
         },
@@ -97,24 +115,28 @@ export function usePlanningModel() {
       void supabase.removeChannel(channel);
       subscription.unsubscribe();
     };
-  }, []);
+  }, [requireOwner, slug]);
 
-  const persist = useCallback((next: PlanningModel) => {
-    const supabase = supabaseRef.current;
-    if (!supabase) return;
-    if (persistTimer.current) window.clearTimeout(persistTimer.current);
-    persistTimer.current = window.setTimeout(() => {
-      writingRef.current = true;
-      void supabase
-        .from("planning_models")
-        .update({ model: next })
-        .eq("id", ROW_ID)
-        .then(({ error }) => {
-          writingRef.current = false;
-          setPersistError(error ? error.message : null);
-        });
-    }, 300);
-  }, []);
+  const persist = useCallback(
+    (next: PlanningModel) => {
+      const supabase = supabaseRef.current;
+      const id = projectIdRef.current;
+      if (!supabase || !id) return;
+      if (persistTimer.current) window.clearTimeout(persistTimer.current);
+      persistTimer.current = window.setTimeout(() => {
+        writingRef.current = true;
+        void supabase
+          .from("planning_projects")
+          .update({ model: next })
+          .eq("id", id)
+          .then(({ error }) => {
+            writingRef.current = false;
+            setPersistError(error ? error.message : null);
+          });
+      }, 300);
+    },
+    [],
+  );
 
   const setModel = useCallback(
     (next: PlanningModel | ((prev: PlanningModel) => PlanningModel)) => {
@@ -128,8 +150,10 @@ export function usePlanningModel() {
   );
 
   const reset = useCallback(() => {
-    setModel(cloneSeed());
-  }, [setModel]);
+    const next = cloneSeed();
+    next.title = projectName;
+    setModel(next);
+  }, [projectName, setModel]);
 
   const result = useMemo(() => evaluate(model), [model]);
 
@@ -139,8 +163,11 @@ export function usePlanningModel() {
     setModel,
     reset,
     hydrated,
+    notFound,
     live,
     userEmail,
     persistError,
+    projectName,
+    slug,
   };
 }

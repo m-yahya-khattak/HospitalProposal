@@ -83,6 +83,17 @@ export type PlanningModel = {
   capex: CapexConfig;
 };
 
+export type PlanningProject = {
+  id: string;
+  slug: string;
+  name: string;
+  ownerId: string;
+  isPublic: boolean;
+  createdAt: string;
+  updatedAt: string;
+  totalBeds: number;
+};
+
 export type DeptResult = {
   id: string;
   name: string;

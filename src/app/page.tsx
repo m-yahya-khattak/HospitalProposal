@@ -1,5 +1,5 @@
-import { Proposal } from "@/components/display/proposal";
+import { ProjectIndex } from "@/components/display/project-index";
 
-export default function DisplayPage() {
-  return <Proposal />;
+export default function HomePage() {
+  return <ProjectIndex />;
 }

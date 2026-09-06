@@ -1585,4 +1585,7 @@ values (
 }
 $seed$::jsonb
 )
-on conflict (id) do nothing;
+on conflict (id) do update
+set model = excluded.model
+where jsonb_typeof(planning_models.model->'items') is distinct from 'array'
+   or jsonb_array_length(planning_models.model->'items') = 0;

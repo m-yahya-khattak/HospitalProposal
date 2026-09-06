@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CapacityTab } from "@/components/control/capacity-tab";
 import { CapexTab } from "@/components/control/capex-tab";
@@ -11,16 +12,26 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePlanningModel } from "@/hooks/use-planning-model";
 import { createClient } from "@/lib/supabase/client";
-import { ExternalLink, LogOut, RotateCcw } from "lucide-react";
+import { ArrowLeft, ExternalLink, LogOut, RotateCcw } from "lucide-react";
 
-export function Studio() {
-  const { model, result, setModel, reset, live, userEmail, persistError } =
-    usePlanningModel();
+export function Studio({ slug }: { slug: string }) {
+  const {
+    model,
+    result,
+    setModel,
+    reset,
+    live,
+    userEmail,
+    persistError,
+    projectName,
+    hydrated,
+    notFound,
+  } = usePlanningModel(slug, { requireOwner: true });
   const [tab, setTab] = useState("capacity");
   const router = useRouter();
 
   const openDisplay = () => {
-    window.open("/", "hospital-display");
+    window.open(`/p/${slug}`, `hospital-display-${slug}`);
   };
 
   const signOut = async () => {
@@ -30,15 +41,37 @@ export function Studio() {
     router.refresh();
   };
 
+  if (hydrated && notFound) {
+    return (
+      <div className="flex min-h-full items-center justify-center bg-stone-50 px-4">
+        <div className="max-w-md text-center">
+          <h1 className="font-heading text-2xl">Project not found</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            This project does not exist or belongs to another operator.
+          </p>
+          <Button className="mt-6" onClick={() => router.push("/control")}>
+            <ArrowLeft data-icon="inline-start" />
+            Back to projects
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-full bg-stone-50 text-stone-900">
       <header className="sticky top-0 z-20 border-b bg-white/90 backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-6">
           <div>
-            <p className="text-[11px] font-medium tracking-[0.18em] text-teal-800 uppercase">
-              Project planning
-            </p>
-            <h1 className="font-heading text-2xl tracking-tight">Control studio</h1>
+            <Link
+              href="/control"
+              className="text-[11px] font-medium tracking-[0.18em] text-teal-800 uppercase hover:underline"
+            >
+              All projects
+            </Link>
+            <h1 className="font-heading text-2xl tracking-tight">
+              {hydrated ? projectName : "Control studio"}
+            </h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {userEmail ? (
@@ -60,7 +93,7 @@ export function Studio() {
               onClick={() => {
                 if (
                   window.confirm(
-                    "Restore the master planning sheet? This replaces the shared plan in the database for everyone.",
+                    "Restore the master planning sheet for this project? Saved edits on this project will be replaced.",
                   )
                 ) {
                   reset();
@@ -89,7 +122,14 @@ export function Studio() {
       </header>
 
       <main className="px-4 py-6 lg:px-6">
-        <Tabs value={tab} onValueChange={(value) => value && setTab(value)}>
+        {!hydrated ? (
+          <p className="text-sm text-muted-foreground">Loading project…</p>
+        ) : null}
+        <Tabs
+          value={tab}
+          onValueChange={(value) => value && setTab(value)}
+          className={hydrated ? undefined : "hidden"}
+        >
           <TabsList variant="line" className="w-full justify-start">
             <TabsTrigger value="capacity">Capacity</TabsTrigger>
             <TabsTrigger value="catalog">Catalog</TabsTrigger>

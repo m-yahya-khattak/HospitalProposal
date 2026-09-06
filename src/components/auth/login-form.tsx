@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
+import { resolveOperatorLogin } from "@/lib/auth";
 
 export function LoginForm({ nextPath }: { nextPath: string }) {
   const router = useRouter();
@@ -26,7 +27,7 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
     }
     setPending(true);
     const { error: signError } = await supabase.auth.signInWithPassword({
-      email,
+      email: resolveOperatorLogin(email),
       password,
     });
     setPending(false);
@@ -53,12 +54,13 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
         </p>
         <form className="mt-8 grid gap-4" onSubmit={onSubmit}>
           <div>
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">Email or name</Label>
             <Input
               id="email"
               className="mt-1 h-10"
-              type="email"
-              autoComplete="email"
+              type="text"
+              autoComplete="username"
+              placeholder="Ahmed or Yahya"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}

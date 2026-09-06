@@ -151,6 +151,12 @@ function ProposalBody({
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Link
+              href="/"
+              className="text-xs text-stone-500 hover:text-teal-800"
+            >
+              All projects
+            </Link>
             {live ? (
               <Badge className="bg-teal-700 text-white">Live</Badge>
             ) : (
@@ -453,8 +459,35 @@ function SpecialtyList({ names }: { names: string[] }) {
   );
 }
 
-export function Proposal() {
-  const { result, live, model } = usePlanningModel();
+export function Proposal({ slug }: { slug: string }) {
+  const { result, live, model, hydrated, notFound } = usePlanningModel(slug);
+
+  if (!hydrated) {
+    return (
+      <div className="flex min-h-full items-center justify-center bg-[#f7f6f3] px-6 py-24 text-stone-500">
+        Loading project…
+      </div>
+    );
+  }
+
+  if (notFound) {
+    return (
+      <div className="flex min-h-full items-center justify-center bg-[#f7f6f3] px-6 py-24">
+        <div className="max-w-md text-center">
+          <h1 className="font-heading text-3xl">Project not found</h1>
+          <p className="mt-2 text-stone-500">
+            This display URL is missing or no longer public.
+          </p>
+          <p className="mt-6">
+            <Link href="/" className="text-teal-800 hover:underline">
+              All public projects
+            </Link>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <ProposalBody
       result={result}
