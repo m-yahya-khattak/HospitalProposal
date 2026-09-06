@@ -25,6 +25,8 @@ export function formulaUsesSpecialty(formula: Formula, specialtyId: string) {
 
 export type DepartmentKitLine = {
   item: CatalogItem;
+  itemIndex: number;
+  formulaIndex: number;
   formula: Formula;
   formulaLabel: string;
   fromThisDept: number;
@@ -39,12 +41,14 @@ export function departmentKit(
   const sources = sourceOptions(model);
   const lines: DepartmentKitLine[] = [];
 
-  for (const item of model.items) {
+  for (const [itemIndex, item] of model.items.entries()) {
     const itemQty = result.items.find((row) => row.id === item.id)?.qty ?? 0;
-    for (const formula of item.contributions) {
+    for (const [formulaIndex, formula] of item.contributions.entries()) {
       if (!formulaUsesDept(formula, deptId)) continue;
       lines.push({
         item,
+        itemIndex,
+        formulaIndex,
         formula,
         formulaLabel: formulaPreview(formula, sources),
         fromThisDept: evalFormula(formula, result.sources, new Map()),
@@ -66,12 +70,14 @@ export function specialtyKit(
   const sources = sourceOptions(model);
   const lines: SpecialtyKitLine[] = [];
 
-  for (const item of model.items) {
+  for (const [itemIndex, item] of model.items.entries()) {
     const itemQty = result.items.find((row) => row.id === item.id)?.qty ?? 0;
-    for (const formula of item.contributions) {
+    for (const [formulaIndex, formula] of item.contributions.entries()) {
       if (!formulaUsesSpecialty(formula, specialtyId)) continue;
       lines.push({
         item,
+        itemIndex,
+        formulaIndex,
         formula,
         formulaLabel: formulaPreview(formula, sources),
         fromThisDept: evalFormula(formula, result.sources, new Map()),

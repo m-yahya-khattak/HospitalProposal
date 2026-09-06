@@ -1,20 +1,24 @@
 "use client";
 
+import { NumberInput } from "@/components/control/number-input";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { departmentKit } from "@/lib/department-kit";
 import { categoryLabel, formatInt, formatNumber } from "@/lib/format";
 import type { Evaluation, PlanningModel } from "@/lib/types";
-import { X } from "lucide-react";
+import { Trash2, X } from "lucide-react";
 
 export function DepartmentPanel({
   deptId,
   model,
   result,
+  onChange,
   onClose,
 }: {
   deptId: string;
   model: PlanningModel;
   result: Evaluation;
+  onChange: (next: PlanningModel) => void;
   onClose: () => void;
 }) {
   const dept = model.departments.find((d) => d.id === deptId);
@@ -22,6 +26,12 @@ export function DepartmentPanel({
   const lines = departmentKit(model, result, deptId);
 
   if (!dept) return null;
+
+  const patch = (fn: (m: PlanningModel) => void) => {
+    const next = structuredClone(model);
+    fn(next);
+    onChange(next);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -58,7 +68,7 @@ export function DepartmentPanel({
             <ul className="grid gap-3">
               {lines.map((line) => (
                 <li
-                  key={`${line.item.id}-${line.formulaLabel}`}
+                  key={`${line.item.id}-${line.formulaIndex}`}
                   className="rounded-xl px-4 py-3 ring-1 ring-stone-200"
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -68,12 +78,45 @@ export function DepartmentPanel({
                         {categoryLabel(line.item.category)}
                       </p>
                     </div>
-                    <p className="font-mono text-sm tabular-nums">
-                      {formatNumber(line.fromThisDept, 2)}
-                    </p>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() =>
+                        patch((m) => {
+                          const item = m.items[line.itemIndex];
+                          if (!item) return;
+                          item.contributions = item.contributions.filter(
+                            (_, i) => i !== line.formulaIndex,
+                          );
+                        })
+                      }
+                    >
+                      <Trash2 />
+                    </Button>
                   </div>
                   <p className="mt-2 text-sm text-stone-600">{line.formulaLabel}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  {"n" in line.formula ? (
+                    <div className="mt-3 flex items-center gap-2">
+                      <Label className="text-xs">Qty</Label>
+                      <NumberInput
+                        className="w-20"
+                        value={line.formula.n}
+                        min={1}
+                        onChange={(value) =>
+                          patch((m) => {
+                            const formula =
+                              m.items[line.itemIndex]?.contributions[
+                                line.formulaIndex
+                              ];
+                            if (formula && "n" in formula) {
+                              formula.n = Math.max(1, Math.round(value));
+                            }
+                          })
+                        }
+                      />
+                    </div>
+                  ) : null}
+                  <p className="mt-2 text-xs text-muted-foreground">
                     From this department: {formatNumber(line.fromThisDept, 2)} ·
                     item total {formatInt(line.itemQty)}
                   </p>

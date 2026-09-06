@@ -383,6 +383,7 @@ export function CatalogTab({ model, result, onChange }: Props) {
           deptId={openDeptId}
           model={model}
           result={result}
+          onChange={onChange}
           onClose={() => setOpenDeptId(null)}
         />
       ) : null}

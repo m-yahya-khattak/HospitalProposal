@@ -14,7 +14,7 @@ import {
 import { specialtyKit, specialtySourceIds } from "@/lib/department-kit";
 import { categoryLabel, formatInt, formatNumber } from "@/lib/format";
 import type { Evaluation, PlanningModel } from "@/lib/types";
-import { Plus, X } from "lucide-react";
+import { Plus, Trash2, X } from "lucide-react";
 
 export function SpecialtyPanel({
   specialtyId,
@@ -137,9 +137,9 @@ export function SpecialtyPanel({
             </p>
           ) : (
             <ul className="mt-5 grid gap-3">
-              {lines.map((line, index) => (
+              {lines.map((line) => (
                 <li
-                  key={`${line.item.id}-${index}`}
+                  key={`${line.item.id}-${line.formulaIndex}`}
                   className="rounded-xl px-4 py-3 ring-1 ring-stone-200"
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -149,12 +149,45 @@ export function SpecialtyPanel({
                         {categoryLabel(line.item.category)}
                       </p>
                     </div>
-                    <p className="font-mono text-sm tabular-nums">
-                      {formatNumber(line.fromThisDept, 2)}
-                    </p>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() =>
+                        patch((m) => {
+                          const item = m.items[line.itemIndex];
+                          if (!item) return;
+                          item.contributions = item.contributions.filter(
+                            (_, i) => i !== line.formulaIndex,
+                          );
+                        })
+                      }
+                    >
+                      <Trash2 />
+                    </Button>
                   </div>
                   <p className="mt-2 text-sm text-stone-600">{line.formulaLabel}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  {"n" in line.formula ? (
+                    <div className="mt-3 flex items-center gap-2">
+                      <Label className="text-xs">Qty</Label>
+                      <NumberInput
+                        className="w-20"
+                        value={line.formula.n}
+                        min={1}
+                        onChange={(value) =>
+                          patch((m) => {
+                            const formula =
+                              m.items[line.itemIndex]?.contributions[
+                                line.formulaIndex
+                              ];
+                            if (formula && "n" in formula) {
+                              formula.n = Math.max(1, Math.round(value));
+                            }
+                          })
+                        }
+                      />
+                    </div>
+                  ) : null}
+                  <p className="mt-2 text-xs text-muted-foreground">
                     From this specialty: {formatNumber(line.fromThisDept, 2)}
                     {on ? "" : " (off)"} · item total {formatInt(line.itemQty)}
                   </p>
