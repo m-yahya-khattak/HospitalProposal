@@ -41,6 +41,14 @@ export function usePlanningModel(slug: string, options: Options = {}) {
       return;
     }
 
+    if (!slug) {
+      void supabase.auth.getUser().then(({ data: { user } }) => {
+        setUserEmail(user?.email ?? null);
+        setHydrated(true);
+      });
+      return;
+    }
+
     let cancelled = false;
 
     const load = async () => {
