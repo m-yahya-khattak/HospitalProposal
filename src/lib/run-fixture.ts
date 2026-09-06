@@ -55,6 +55,11 @@ if (evaluate(legacy).capex.totalPremium !== result.capex.totalPremium) {
   console.error("Legacy fxRate still changes CAPEX totals");
   process.exit(1);
 }
+const bomLines = result.capex.lines.filter((line) => line.fromBom);
+if (bomLines.length !== 1 || bomLines[0].id !== "medical-equipment") {
+  console.error("Only medical-equipment should use catalog totals");
+  process.exit(1);
+}
 if (!Number.isFinite(result.capex.totalPremium) || result.capex.totalPremium <= 0) {
   console.error("Expected a USD CAPEX total");
   process.exit(1);

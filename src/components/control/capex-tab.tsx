@@ -3,7 +3,6 @@
 import { NumberInput } from "@/components/control/number-input";
 import { useMoney } from "@/components/currency-provider";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -12,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { bedsFromArea, scaleHospitalBeds } from "@/lib/engine";
+import { BOM_CAPEX_LINE_ID, bedsFromArea, scaleHospitalBeds } from "@/lib/engine";
 import { BASE_CURRENCY } from "@/lib/currency";
 import { formatInt } from "@/lib/format";
 import type { Evaluation, PlanningModel } from "@/lib/types";
@@ -37,9 +36,8 @@ export function CapexTab({ model, result, onChange }: Props) {
         <div>
           <h2 className="text-xl font-medium tracking-tight">Area & rates</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Square feet per bed interpolates between these bands. Construction
-            is rate × area, entered in {BASE_CURRENCY}. Medical equipment uses
-            catalog totals, not a flat sq.ft rate.
+            Construction is rate × area ({BASE_CURRENCY}). Medical equipment
+            follows the catalog.
           </p>
         </div>
 
@@ -88,7 +86,6 @@ export function CapexTab({ model, result, onChange }: Props) {
               <TableRow>
                 <TableHead>Line</TableHead>
                 <TableHead>{BASE_CURRENCY} / sq.ft</TableHead>
-                <TableHead>From BOM</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -96,9 +93,9 @@ export function CapexTab({ model, result, onChange }: Props) {
                 <TableRow key={line.id}>
                   <TableCell>{line.name}</TableCell>
                   <TableCell>
-                    {line.fromBom ? (
+                    {line.id === BOM_CAPEX_LINE_ID ? (
                       <span className="text-xs text-muted-foreground">
-                        Linked to equipment totals
+                        Catalog
                       </span>
                     ) : (
                       <NumberInput
@@ -112,16 +109,6 @@ export function CapexTab({ model, result, onChange }: Props) {
                         }
                       />
                     )}
-                  </TableCell>
-                  <TableCell>
-                    <Switch
-                      checked={Boolean(line.fromBom)}
-                      onCheckedChange={(checked) =>
-                        patch((m) => {
-                          m.capex.lines[index].fromBom = Boolean(checked);
-                        })
-                      }
-                    />
                   </TableCell>
                 </TableRow>
               ))}
@@ -182,8 +169,8 @@ export function CapexTab({ model, result, onChange }: Props) {
                 <TableRow key={line.id}>
                   <TableCell>
                     {line.name}
-                    {line.fromBom ? (
-                      <span className="ml-2 text-xs text-teal-800">BOM</span>
+                    {line.id === BOM_CAPEX_LINE_ID ? (
+                      <span className="ml-2 text-xs text-teal-800">Catalog</span>
                     ) : null}
                   </TableCell>
                   <TableCell className="text-right font-mono tabular-nums">

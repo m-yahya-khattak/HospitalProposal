@@ -10,6 +10,8 @@ import type {
   PlanningModel,
 } from "@/lib/types";
 
+export const BOM_CAPEX_LINE_ID = "medical-equipment";
+
 export function deptSource(id: string) {
   return `dept:${id}.beds`;
 }
@@ -320,7 +322,7 @@ export function evaluate(model: PlanningModel): Evaluation {
   const areaSqft = model.totalBeds * sqftPerBed;
 
   const capexLines: CapexLineResult[] = model.capex.lines.map((line) => {
-    const fromBom = Boolean(line.fromBom);
+    const fromBom = line.id === BOM_CAPEX_LINE_ID;
     const premium = fromBom ? bomPremium : areaSqft * line.ratePerSqft;
     const budget = fromBom ? bomBudget : areaSqft * line.ratePerSqft;
     return {
