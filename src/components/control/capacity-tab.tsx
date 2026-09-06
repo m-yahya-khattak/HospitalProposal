@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { bedsFromArea, scaleHospitalBeds } from "@/lib/engine";
 import { slugify } from "@/lib/id";
 import { formatInt, formatPercent } from "@/lib/format";
 import type { Evaluation, PlanningModel } from "@/lib/types";
@@ -52,16 +53,13 @@ export function CapacityTab({ model, result, onChange }: Props) {
 
   const setTotalBeds = (total: number) => {
     patch((m) => {
-      const nextTotal = Math.max(10, Math.round(total));
-      const current = departmentBeds(m, result);
-      const prevTotal = current.reduce((sum, n) => sum + n, 0) || m.totalBeds;
-      const scaled = current.map((n) =>
-        Math.round((n * nextTotal) / prevTotal),
-      );
-      const drift = nextTotal - scaled.reduce((sum, n) => sum + n, 0);
-      if (scaled.length) scaled[scaled.length - 1] += drift;
-      applyBedCounts(m, scaled);
-      m.totalBeds = nextTotal;
+      scaleHospitalBeds(m, total);
+    });
+  };
+
+  const setArea = (area: number) => {
+    patch((m) => {
+      scaleHospitalBeds(m, bedsFromArea(area, m.capex.areaBands));
     });
   };
 
@@ -76,7 +74,7 @@ export function CapacityTab({ model, result, onChange }: Props) {
               rules on the right.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               size="icon"
@@ -85,10 +83,11 @@ export function CapacityTab({ model, result, onChange }: Props) {
               <Minus />
             </Button>
             <NumberInput
-              className="w-28"
+              className="w-32"
               value={model.totalBeds}
               min={10}
               max={2000}
+              suffix="beds"
               onChange={setTotalBeds}
             />
             <Button
@@ -98,6 +97,13 @@ export function CapacityTab({ model, result, onChange }: Props) {
             >
               <Plus />
             </Button>
+            <NumberInput
+              className="w-40"
+              value={Math.round(result.areaSqft)}
+              min={1}
+              suffix="sq.ft"
+              onChange={setArea}
+            />
           </div>
         </div>
 

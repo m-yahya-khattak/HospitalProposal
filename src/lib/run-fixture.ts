@@ -1,6 +1,11 @@
 import { seedModel } from "../data/seed-model";
 import { normalizePlanningModel } from "./currency";
-import { evaluate, excel200Mismatches } from "./engine";
+import {
+  areaFromBeds,
+  bedsFromArea,
+  evaluate,
+  excel200Mismatches,
+} from "./engine";
 import { sourceOptions } from "./formula-label";
 import { parseContributions, toContributions } from "./formula-matrix";
 
@@ -52,6 +57,22 @@ if (evaluate(legacy).capex.totalPremium !== result.capex.totalPremium) {
 }
 if (!Number.isFinite(result.capex.totalPremium) || result.capex.totalPremium <= 0) {
   console.error("Expected a USD CAPEX total");
+  process.exit(1);
+}
+
+const bands = seedModel.capex.areaBands;
+if (bedsFromArea(340000, bands) !== 200) {
+  console.error(`340000 sq.ft should invert to 200 beds, got ${bedsFromArea(340000, bands)}`);
+  process.exit(1);
+}
+if (bedsFromArea(180000, bands) !== 100) {
+  console.error(`180000 sq.ft should invert to 100 beds, got ${bedsFromArea(180000, bands)}`);
+  process.exit(1);
+}
+const fromArea = bedsFromArea(400000, bands);
+const roundTrip = areaFromBeds(fromArea, bands);
+if (Math.abs(roundTrip - 400000) / 400000 > 0.01) {
+  console.error(`Area invert drifted: ${fromArea} beds → ${roundTrip} sq.ft`);
   process.exit(1);
 }
 

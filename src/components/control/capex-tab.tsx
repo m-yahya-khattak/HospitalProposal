@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { bedsFromArea, scaleHospitalBeds } from "@/lib/engine";
 import { BASE_CURRENCY } from "@/lib/currency";
 import { formatInt } from "@/lib/format";
 import type { Evaluation, PlanningModel } from "@/lib/types";
@@ -52,7 +53,7 @@ export function CapexTab({ model, result, onChange }: Props) {
             </TableHeader>
             <TableBody>
               {model.capex.areaBands.map((band, index) => (
-                <TableRow key={band.beds}>
+                <TableRow key={`${band.beds}-${index}`}>
                   <TableCell>
                     <NumberInput
                       value={band.beds}
@@ -131,12 +132,42 @@ export function CapexTab({ model, result, onChange }: Props) {
 
       <section>
         <h2 className="text-xl font-medium tracking-tight">Live CAPEX</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {formatInt(result.areaSqft)} sq.ft · {formatInt(result.sqftPerBed)}{" "}
-          sq.ft/bed
-          {model.capex.landExcluded ? " · land excluded" : ""} · shown in{" "}
-          {money.currency}
-        </p>
+        <div className="mt-3 flex flex-wrap items-end gap-3">
+          <div>
+            <Label className="text-xs">Area</Label>
+            <NumberInput
+              className="mt-1 w-40"
+              value={Math.round(result.areaSqft)}
+              min={1}
+              suffix="sq.ft"
+              onChange={(area) =>
+                patch((m) => {
+                  scaleHospitalBeds(m, bedsFromArea(area, m.capex.areaBands));
+                })
+              }
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Beds</Label>
+            <NumberInput
+              className="mt-1 w-32"
+              value={model.totalBeds}
+              min={10}
+              max={2000}
+              suffix="beds"
+              onChange={(total) =>
+                patch((m) => {
+                  scaleHospitalBeds(m, total);
+                })
+              }
+            />
+          </div>
+          <p className="mb-2 text-sm text-muted-foreground">
+            {formatInt(result.sqftPerBed)} sq.ft/bed
+            {model.capex.landExcluded ? " · land excluded" : ""} ·{" "}
+            {money.currency}
+          </p>
+        </div>
         <div className="mt-4 overflow-hidden rounded-xl ring-1 ring-foreground/10">
           <Table>
             <TableHeader>

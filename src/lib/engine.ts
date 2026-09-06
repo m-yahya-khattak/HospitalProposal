@@ -42,8 +42,25 @@ function allocateBeds(model: PlanningModel): DeptResult[] {
   });
 }
 
-function interpolateSqft(beds: number, bands: { beds: number; sqftPerBed: number }[]) {
-  const sorted = [...bands].sort((a, b) => a.beds - b.beds);
+const MIN_BEDS = 10;
+const MAX_BEDS = 2000;
+
+type AreaBand = { beds: number; sqftPerBed: number };
+
+function sortedBands(bands: AreaBand[]) {
+  return [...bands]
+    .filter(
+      (b) =>
+        Number.isFinite(b.beds) &&
+        Number.isFinite(b.sqftPerBed) &&
+        b.beds > 0 &&
+        b.sqftPerBed > 0,
+    )
+    .sort((a, b) => a.beds - b.beds);
+}
+
+export function interpolateSqft(beds: number, bands: AreaBand[]) {
+  const sorted = sortedBands(bands);
   if (sorted.length === 0) return 0;
   if (beds <= sorted[0].beds) return sorted[0].sqftPerBed;
   const last = sorted[sorted.length - 1];
@@ -51,12 +68,111 @@ function interpolateSqft(beds: number, bands: { beds: number; sqftPerBed: number
   for (let i = 0; i < sorted.length - 1; i++) {
     const a = sorted[i];
     const b = sorted[i + 1];
+    const span = b.beds - a.beds;
+    if (span === 0) continue;
     if (beds >= a.beds && beds <= b.beds) {
-      const t = (beds - a.beds) / (b.beds - a.beds);
+      const t = (beds - a.beds) / span;
       return a.sqftPerBed + t * (b.sqftPerBed - a.sqftPerBed);
     }
   }
   return last.sqftPerBed;
+}
+
+export function areaFromBeds(beds: number, bands: AreaBand[]) {
+  return beds * interpolateSqft(beds, bands);
+}
+
+function bedsInSegment(
+  area: number,
+  b0: number,
+  s0: number,
+  b1: number,
+  s1: number,
+) {
+  const span = b1 - b0;
+  if (span === 0) return null;
+  const m = (s1 - s0) / span;
+  const c = s0 - m * b0;
+  const lo = Math.min(b0, b1);
+  const hi = Math.max(b0, b1);
+  const inRange = (x: number) => x >= lo - 1e-6 && x <= hi + 1e-6 && x > 0;
+  if (Math.abs(m) < 1e-12) {
+    if (Math.abs(c) < 1e-12) return null;
+    const B = area / c;
+    return inRange(B) ? B : null;
+  }
+  const disc = c * c + 4 * m * area;
+  if (disc < 0) return null;
+  const sqrt = Math.sqrt(disc);
+  const r1 = (-c + sqrt) / (2 * m);
+  const r2 = (-c - sqrt) / (2 * m);
+  if (inRange(r1)) return r1;
+  if (inRange(r2)) return r2;
+  return null;
+}
+
+export function bedsFromArea(area: number, bands: AreaBand[]) {
+  if (!Number.isFinite(area) || area <= 0) return MIN_BEDS;
+  const sorted = sortedBands(bands);
+  if (sorted.length === 0) return MIN_BEDS;
+
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+  if (area <= first.beds * first.sqftPerBed) {
+    return clampBeds(area / first.sqftPerBed);
+  }
+  if (area >= last.beds * last.sqftPerBed) {
+    return clampBeds(area / last.sqftPerBed);
+  }
+
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const a = sorted[i];
+    const b = sorted[i + 1];
+    const a0 = a.beds * a.sqftPerBed;
+    const a1 = b.beds * b.sqftPerBed;
+    if (area < Math.min(a0, a1) - 1e-6 || area > Math.max(a0, a1) + 1e-6) {
+      continue;
+    }
+    const root = bedsInSegment(
+      area,
+      a.beds,
+      a.sqftPerBed,
+      b.beds,
+      b.sqftPerBed,
+    );
+    if (root != null) return clampBeds(root);
+  }
+
+  let lo = MIN_BEDS;
+  let hi = MAX_BEDS;
+  for (let n = 0; n < 40; n++) {
+    const mid = (lo + hi) / 2;
+    if (areaFromBeds(mid, sorted) < area) lo = mid;
+    else hi = mid;
+  }
+  return clampBeds((lo + hi) / 2);
+}
+
+function clampBeds(n: number) {
+  if (!Number.isFinite(n)) return MIN_BEDS;
+  return Math.max(MIN_BEDS, Math.min(MAX_BEDS, Math.round(n)));
+}
+
+export function scaleHospitalBeds(model: PlanningModel, total: number) {
+  const nextTotal = clampBeds(total);
+  const current = model.departments.map((dept) => {
+    if (typeof dept.beds === "number") return Math.max(0, Math.round(dept.beds));
+    return Math.round((model.totalBeds * dept.sharePercent) / 100);
+  });
+  const prevTotal = current.reduce((sum, n) => sum + n, 0) || model.totalBeds;
+  const scaled = current.map((n) => Math.round((n * nextTotal) / prevTotal));
+  const drift = nextTotal - scaled.reduce((sum, n) => sum + n, 0);
+  if (scaled.length) scaled[scaled.length - 1] += drift;
+  model.totalBeds = nextTotal;
+  model.departments.forEach((dept, index) => {
+    dept.beds = scaled[index] ?? 0;
+    dept.sharePercent = nextTotal ? (dept.beds / nextTotal) * 100 : 0;
+  });
 }
 
 export function evalFormula(
