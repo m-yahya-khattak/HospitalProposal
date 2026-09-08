@@ -28,7 +28,8 @@ import { newId, slugify } from "@/lib/id";
 import { sourceOptions } from "@/lib/formula-label";
 import { formulaSentence } from "@/lib/formula-matrix";
 import { categoryLabel, formatInt, modelCategories } from "@/lib/format";
-import type { Evaluation, Formula, PlanningModel } from "@/lib/types";
+import { quoteById } from "@/lib/quotes";
+import type { Evaluation, Formula, PlanningModel, QuoteProduct } from "@/lib/types";
 import { LayoutGrid, List, Pencil, Plus, Trash2 } from "lucide-react";
 
 type Props = {
@@ -44,6 +45,7 @@ function ItemRow({
   index,
   qty,
   sources,
+  quotes,
   onOpen,
   onPatch,
   onDelete,
@@ -52,10 +54,13 @@ function ItemRow({
   index: number;
   qty: number;
   sources: ReturnType<typeof sourceOptions>;
+  quotes: QuoteProduct[];
   onOpen: () => void;
   onPatch: (fn: (m: PlanningModel) => void) => void;
   onDelete: () => void;
 }) {
+  const premiumQuote = quoteById(quotes, item.premiumQuoteId);
+  const budgetQuote = quoteById(quotes, item.budgetQuoteId);
   return (
     <li className="grid items-center gap-3 px-4 py-3 md:grid-cols-6">
       <button type="button" className="min-w-0 text-left" onClick={onOpen}>
@@ -67,26 +72,42 @@ function ItemRow({
       <p className="font-mono text-sm tabular-nums text-teal-800">
         {formatInt(qty)}
       </p>
-      <NumberInput
-        value={item.premiumUnit}
-        min={0}
-        suffix="USD"
-        onChange={(value) =>
-          onPatch((m) => {
-            m.items[index].premiumUnit = value;
-          })
-        }
-      />
-      <NumberInput
-        value={item.budgetUnit}
-        min={0}
-        suffix="USD"
-        onChange={(value) =>
-          onPatch((m) => {
-            m.items[index].budgetUnit = value;
-          })
-        }
-      />
+      <div className="min-w-0">
+        <NumberInput
+          value={item.premiumUnit}
+          min={0}
+          suffix="USD"
+          onChange={(value) =>
+            onPatch((m) => {
+              m.items[index].premiumUnit = value;
+              m.items[index].premiumQuoteId = null;
+            })
+          }
+        />
+        {premiumQuote ? (
+          <p className="mt-0.5 min-w-0 truncate text-[11px] text-muted-foreground">
+            {premiumQuote.supplier || premiumQuote.name}
+          </p>
+        ) : null}
+      </div>
+      <div className="min-w-0">
+        <NumberInput
+          value={item.budgetUnit}
+          min={0}
+          suffix="USD"
+          onChange={(value) =>
+            onPatch((m) => {
+              m.items[index].budgetUnit = value;
+              m.items[index].budgetQuoteId = null;
+            })
+          }
+        />
+        {budgetQuote ? (
+          <p className="mt-0.5 min-w-0 truncate text-[11px] text-muted-foreground">
+            {budgetQuote.supplier || budgetQuote.name}
+          </p>
+        ) : null}
+      </div>
       <Switch
         checked={item.enabled}
         onCheckedChange={(checked) =>
@@ -284,6 +305,7 @@ export function ItemsTab({
                       index={index}
                       qty={qty}
                       sources={sources}
+                      quotes={model.quotes ?? []}
                       onOpen={() => setItemId(item.id)}
                       onPatch={patch}
                       onDelete={() =>

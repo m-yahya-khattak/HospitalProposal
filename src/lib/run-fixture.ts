@@ -8,6 +8,14 @@ import {
 } from "./engine";
 import { sourceOptions } from "./formula-label";
 import { parseContributions, toContributions } from "./formula-matrix";
+import {
+  applyQuotePrices,
+  mergeQuotes,
+  parseQuoteRows,
+  tableFromSheet,
+  usdFromOriginal,
+} from "./quotes";
+import type { CatalogItem } from "./types";
 
 const result = evaluate(seedModel);
 const errors = excel200Mismatches(result);
@@ -123,3 +131,60 @@ console.log({
   areaSqft: result.areaSqft,
   categories: result.categoryRollup.map((row) => row.id),
 });
+
+const table = tableFromSheet([
+  ["Catalog export"],
+  [],
+  ["ID", "Product", "Translation", "Brand", "Model", "Price", "URL"],
+  ["A1", "病床", "Hospital bed", "Mindray", "HyBase", 12800],
+  ["A2", "Monitor", "", "GE", "B450", 7300],
+]);
+if (!table) {
+  console.error("Expected to find Catalog headers a few rows down");
+  process.exit(1);
+}
+const drafts = parseQuoteRows(table.headers, table.rows);
+if (drafts.length !== 2 || drafts[0].name !== "Hospital bed" || drafts[1].name !== "Monitor") {
+  console.error("parseQuoteRows should prefer Translation, else Product");
+  process.exit(1);
+}
+if (drafts[0].supplier !== "Mindray" || drafts[0].externalId !== "A1" || drafts[0].currency !== "CNY") {
+  console.error("parseQuoteRows should map Brand, ID, and default CNY");
+  process.exit(1);
+}
+if (Math.abs(usdFromOriginal(7300, "CNY", { CNY: 7.3 }) - 1000) > 0.01) {
+  console.error("usdFromOriginal should divide by units of currency per USD");
+  process.exit(1);
+}
+const first = mergeQuotes([], drafts, { rates: { CNY: 7.3 }, asOf: "2026-01-01" });
+if (first.added !== 2 || first.updated !== 0 || first.quotes.length !== 2) {
+  console.error("mergeQuotes should add new rows");
+  process.exit(1);
+}
+const again = mergeQuotes(
+  first.quotes,
+  [{ ...drafts[0], originalPrice: 14600 }],
+  { rates: { CNY: 7.3 }, asOf: "2026-01-01" },
+);
+if (again.added !== 0 || again.updated !== 1 || again.quotes.length !== 2) {
+  console.error("mergeQuotes should update by externalId instead of duplicating");
+  process.exit(1);
+}
+const priced = again.quotes.find((quote) => quote.externalId === "A1");
+if (!priced || Math.abs(priced.usdUnit - 2000) > 0.01) {
+  console.error(`Expected updated USD 2000, got ${priced?.usdUnit}`);
+  process.exit(1);
+}
+const sample: CatalogItem = {
+  ...seedModel.items[0],
+  premiumQuoteIds: [priced.id],
+  premiumQuoteId: priced.id,
+  premiumUnit: 1,
+};
+applyQuotePrices(sample, again.quotes);
+if (Math.abs(sample.premiumUnit - priced.usdUnit) > 0.01) {
+  console.error("applyQuotePrices should write usdUnit onto premiumUnit");
+  process.exit(1);
+}
+
+console.log("Quote parse/merge OK");

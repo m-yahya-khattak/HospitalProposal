@@ -45,6 +45,26 @@ export type CatalogItem = {
   budgetUnit: number;
   enabled: boolean;
   contributions: Formula[];
+  premiumQuoteIds?: string[];
+  budgetQuoteIds?: string[];
+  premiumQuoteId?: string | null;
+  budgetQuoteId?: string | null;
+};
+
+export type QuoteRole = "premium" | "budget" | "both";
+
+export type QuoteProduct = {
+  id: string;
+  name: string;
+  supplier: string;
+  model?: string;
+  currency: string;
+  originalPrice: number;
+  usdUnit: number;
+  fxRate?: number;
+  fxAsOf?: string;
+  source: "upload" | "manual";
+  externalId?: string;
 };
 
 export type TheatreRules = {
@@ -98,6 +118,7 @@ export type PlanningModel = {
   categoryLabels?: Record<string, string>;
   theatre: TheatreRules;
   items: CatalogItem[];
+  quotes?: QuoteProduct[];
   capex: CapexConfig;
   fx?: FxSettings;
 };

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CapacityTab } from "@/components/control/capacity-tab";
 import { CapexTab } from "@/components/control/capex-tab";
 import { ItemsTab } from "@/components/control/items-tab";
+import { QuotesTab } from "@/components/control/quotes-tab";
 import { KpiStrip } from "@/components/control/kpi-strip";
 import { ProjectPanel } from "@/components/control/project-panel";
 import { CurrencyProvider } from "@/components/currency-provider";
@@ -164,6 +165,7 @@ export function Studio({
               <TabsList variant="line" className="w-full justify-start">
                 <TabsTrigger value="capacity">Capacity</TabsTrigger>
                 <TabsTrigger value="items">Items</TabsTrigger>
+                <TabsTrigger value="quotes">Quotes</TabsTrigger>
                 <TabsTrigger value="capex">CAPEX</TabsTrigger>
               </TabsList>
               <TabsContent value="capacity" className="pt-6">
@@ -177,6 +179,9 @@ export function Studio({
                   filter={itemFilter}
                   onFilterChange={setItemFilter}
                 />
+              </TabsContent>
+              <TabsContent value="quotes" className="pt-6">
+                <QuotesTab model={model} onChange={setModel} />
               </TabsContent>
               <TabsContent value="capex" className="pt-6">
                 <CapexTab model={model} result={result} onChange={setModel} />

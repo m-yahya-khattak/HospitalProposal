@@ -1,5 +1,6 @@
 import { BOM_CAPEX_LINE_ID } from "@/lib/engine";
 import { modelCategories } from "@/lib/format";
+import { normalizeQuotes } from "@/lib/quotes";
 import type { FxSettings, PlanningModel } from "@/lib/types";
 
 export const BASE_CURRENCY = "USD";
@@ -71,6 +72,7 @@ export function normalizePlanningModel(model: PlanningModel): PlanningModel {
   next.capex.excludedCategories = (next.capex.excludedCategories ?? []).filter(
     (id) => known.has(id),
   );
+  normalizeQuotes(next);
   return next;
 }
 

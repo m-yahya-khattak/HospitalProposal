@@ -163,10 +163,12 @@ export function usePlanningModel(slug: string, options: Options = {}) {
   );
 
   const reset = useCallback(() => {
+    const quotes = model.quotes ?? [];
     const next = cloneSeed();
     next.title = projectName;
+    next.quotes = structuredClone(quotes);
     setModel(next);
-  }, [projectName, setModel]);
+  }, [model.quotes, projectName, setModel]);
 
   const result = useMemo(() => evaluate(model), [model]);
 
