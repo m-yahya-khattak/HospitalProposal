@@ -21,11 +21,11 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useMoney } from "@/components/currency-provider";
 import { useExchangeRates } from "@/hooks/use-exchange-rates";
 import { COMMON_CURRENCIES } from "@/lib/currency";
 import {
   formatQuoteOriginal,
-  formatQuoteUsd,
   mergeQuotes,
   parseQuoteWorkbook,
   pricedQuote,
@@ -43,6 +43,7 @@ type Props = {
 };
 
 export function QuotesTab({ model, onChange }: Props) {
+  const money = useMoney();
   const live = useExchangeRates();
   const fileRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
@@ -99,9 +100,6 @@ export function QuotesTab({ model, onChange }: Props) {
           <h2 className="text-xl font-medium tracking-tight">Quotes</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {quotes.length} products
-            {live.table?.rates.CNY
-              ? ` · 1 USD = ${Math.round(live.table.rates.CNY)} CNY`
-              : ""}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -153,7 +151,7 @@ export function QuotesTab({ model, onChange }: Props) {
           <span>Product</span>
           <span>Supplier</span>
           <span className="text-right">Quoted</span>
-          <span className="text-right">USD</span>
+          <span className="text-right">{money.currency}</span>
           <span />
         </div>
         {slice.length === 0 ? (
@@ -184,7 +182,7 @@ export function QuotesTab({ model, onChange }: Props) {
                     {formatQuoteOriginal(quote)}
                   </span>
                   <span className="font-mono text-sm tabular-nums text-teal-800 md:text-right">
-                    {formatQuoteUsd(quote.usdUnit)}
+                    {money.format(quote.usdUnit)}
                   </span>
                   <span className="text-[11px] text-muted-foreground md:text-right">
                     {quote.source === "manual" ? "Manual" : "Upload"}
@@ -227,7 +225,6 @@ export function QuotesTab({ model, onChange }: Props) {
         open={creating || Boolean(editId)}
         quote={editId ? quotes.find((quote) => quote.id === editId) : undefined}
         rates={live.table?.rates}
-        asOf={live.table?.asOf}
         onOpenChange={(open) => {
           if (!open) {
             setCreating(false);
@@ -264,7 +261,6 @@ function QuoteSheet({
   open,
   quote,
   rates,
-  asOf,
   onOpenChange,
   onSave,
   onDelete,
@@ -272,7 +268,6 @@ function QuoteSheet({
   open: boolean;
   quote?: QuoteProduct;
   rates?: Record<string, number>;
-  asOf?: string;
   onOpenChange: (open: boolean) => void;
   onSave: (
     draft: {
@@ -303,6 +298,7 @@ function QuoteSheet({
     setPrice(quote?.originalPrice ?? 0);
   }, [open, quote?.id]);
 
+  const money = useMoney();
   const usd = usdFromOriginal(price, currency, rates);
   const codes = COMMON_CURRENCIES.includes(currency as (typeof COMMON_CURRENCIES)[number])
     ? COMMON_CURRENCIES
@@ -315,7 +311,7 @@ function QuoteSheet({
           <div className="min-w-0">
             <SheetTitle>{quote ? "Edit quote" : "Add quote"}</SheetTitle>
             <SheetDescription>
-              Original currency is stored. USD follows the live rate.
+              Quoted amount stays in its currency. Display follows the header.
             </SheetDescription>
           </div>
           <SheetCloseButton />
@@ -370,11 +366,7 @@ function QuoteSheet({
             </div>
           </div>
           <p className="rounded-xl bg-stone-50 px-3 py-2 text-sm">
-            {formatQuoteUsd(usd)}
-            {rates?.[quoteCurrency(currency)]
-              ? ` · 1 USD = ${Math.round(rates[quoteCurrency(currency)])} ${quoteCurrency(currency)}`
-              : ""}
-            {asOf ? ` · ${asOf}` : ""}
+            {money.format(usd)}
           </p>
           <div className="flex flex-wrap gap-2">
             <Button
