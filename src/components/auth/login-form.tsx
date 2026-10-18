@@ -6,13 +6,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
-import { resolveOperatorLogin } from "@/lib/auth";
+import { postLoginPath, resolveOperatorLogin } from "@/lib/auth";
+import { visitorClaims, visitorExpired } from "@/lib/access";
 
-export function LoginForm({ nextPath }: { nextPath: string }) {
+export function LoginForm({
+  nextPath,
+  expired,
+}: {
+  nextPath: string;
+  expired?: boolean;
+}) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    expired ? "That visitor login has expired." : null,
+  );
   const [pending, setPending] = useState(false);
 
   const onSubmit = async (event: React.FormEvent) => {
@@ -30,12 +39,23 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
       email: resolveOperatorLogin(email),
       password,
     });
-    setPending(false);
     if (signError) {
+      setPending(false);
       setError(signError.message);
       return;
     }
-    router.push(nextPath);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const claims = visitorClaims(user);
+    if (claims && visitorExpired(claims.expiresAt)) {
+      await supabase.auth.signOut();
+      setPending(false);
+      setError("That visitor login has expired.");
+      return;
+    }
+    setPending(false);
+    router.push(postLoginPath(user, nextPath));
     router.refresh();
   };
 

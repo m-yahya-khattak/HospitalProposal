@@ -18,6 +18,8 @@ type Props = {
   model: PlanningModel;
   result: Evaluation;
   onChange: (next: PlanningModel) => void;
+  readOnly?: boolean;
+  onScaleBeds?: (beds: number) => void;
 };
 
 function departmentBeds(model: PlanningModel, result: Evaluation) {
@@ -36,8 +38,16 @@ function applyBedCounts(model: PlanningModel, counts: number[]) {
   });
 }
 
-export function CapacityTab({ model, result, onChange }: Props) {
+export function CapacityTab({
+  model,
+  result,
+  onChange,
+  readOnly,
+  onScaleBeds,
+}: Props) {
+  const canScale = Boolean(onScaleBeds) || !readOnly;
   const patch = (fn: (m: PlanningModel) => void) => {
+    if (readOnly) return;
     const next = structuredClone(model);
     fn(next);
     onChange(next);
@@ -52,14 +62,23 @@ export function CapacityTab({ model, result, onChange }: Props) {
   const [openSpecId, setOpenSpecId] = useState<string | null>(null);
 
   const setTotalBeds = (total: number) => {
+    if (onScaleBeds) {
+      onScaleBeds(total);
+      return;
+    }
     patch((m) => {
       scaleHospitalBeds(m, total);
     });
   };
 
   const setArea = (area: number) => {
+    const beds = bedsFromArea(area, model.capex.areaBands);
+    if (onScaleBeds) {
+      onScaleBeds(beds);
+      return;
+    }
     patch((m) => {
-      scaleHospitalBeds(m, bedsFromArea(area, m.capex.areaBands));
+      scaleHospitalBeds(m, beds);
     });
   };
 
@@ -78,6 +97,7 @@ export function CapacityTab({ model, result, onChange }: Props) {
             <Button
               variant="outline"
               size="icon"
+              disabled={!canScale}
               onClick={() => setTotalBeds(model.totalBeds - 10)}
             >
               <Minus />
@@ -88,11 +108,13 @@ export function CapacityTab({ model, result, onChange }: Props) {
               min={10}
               max={2000}
               suffix="beds"
+              disabled={!canScale}
               onChange={setTotalBeds}
             />
             <Button
               variant="outline"
               size="icon"
+              disabled={!canScale}
               onClick={() => setTotalBeds(model.totalBeds + 10)}
             >
               <Plus />
@@ -102,6 +124,7 @@ export function CapacityTab({ model, result, onChange }: Props) {
               value={Math.round(result.areaSqft)}
               min={1}
               suffix="sq.ft"
+              disabled={!canScale}
               onChange={setArea}
             />
           </div>
@@ -131,7 +154,9 @@ export function CapacityTab({ model, result, onChange }: Props) {
                 <button
                   type="button"
                   className="min-w-0 text-left"
-                  onClick={() => setOpenDeptId(dept.id)}
+                  onClick={() => {
+                    if (!readOnly) setOpenDeptId(dept.id);
+                  }}
                 >
                   <p className="text-sm font-medium hover:text-teal-800">
                     {dept.name}
@@ -140,24 +165,31 @@ export function CapacityTab({ model, result, onChange }: Props) {
                     {formatPercent(share)} of total
                   </p>
                 </button>
-                <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <Switch
-                    size="sm"
-                    checked={dept.furniture}
-                    onCheckedChange={(checked) =>
-                      patch((m) => {
-                        m.departments[index].furniture = Boolean(checked);
-                      })
-                    }
-                  />
-                  Furn.
-                </label>
+                {readOnly ? (
+                  <p className="text-[11px] text-muted-foreground">
+                    {dept.furniture ? "Furn." : ""}
+                  </p>
+                ) : (
+                  <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <Switch
+                      size="sm"
+                      checked={dept.furniture}
+                      onCheckedChange={(checked) =>
+                        patch((m) => {
+                          m.departments[index].furniture = Boolean(checked);
+                        })
+                      }
+                    />
+                    Furn.
+                  </label>
+                )}
                 <NumberInput
                   value={beds}
                   min={0}
                   max={2000}
                   suffix="beds"
                   className="w-[7.5rem]"
+                  disabled={readOnly}
                   onChange={(value) =>
                     patch((m) => {
                       const next = departmentBeds(m, result);
@@ -166,21 +198,26 @@ export function CapacityTab({ model, result, onChange }: Props) {
                     })
                   }
                 />
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={() =>
-                    patch((m) => {
-                      m.departments = m.departments.filter((_, i) => i !== index);
-                    })
-                  }
-                >
-                  <Trash2 />
-                </Button>
+                {readOnly ? (
+                  <span />
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() =>
+                      patch((m) => {
+                        m.departments = m.departments.filter((_, i) => i !== index);
+                      })
+                    }
+                  >
+                    <Trash2 />
+                  </Button>
+                )}
               </li>
             );
           })}
         </ul>
+        {readOnly ? null : (
         <form
           className="mt-3 flex max-w-md gap-2"
           onSubmit={(event) => {
@@ -208,6 +245,7 @@ export function CapacityTab({ model, result, onChange }: Props) {
             Add
           </Button>
         </form>
+        )}
       </section>
 
       <aside className="space-y-6">
@@ -220,6 +258,7 @@ export function CapacityTab({ model, result, onChange }: Props) {
                 className="mt-1"
                 value={model.theatre.otPerBeds}
                 min={1}
+                disabled={readOnly}
                 onChange={(v) =>
                   patch((m) => {
                     m.theatre.otPerBeds = v;
@@ -233,6 +272,7 @@ export function CapacityTab({ model, result, onChange }: Props) {
                 className="mt-1"
                 value={model.theatre.minorPerOt}
                 min={1}
+                disabled={readOnly}
                 onChange={(v) =>
                   patch((m) => {
                     m.theatre.minorPerOt = v;
@@ -246,6 +286,7 @@ export function CapacityTab({ model, result, onChange }: Props) {
                 className="mt-1"
                 value={model.theatre.ldPerBeds}
                 min={1}
+                disabled={readOnly}
                 onChange={(v) =>
                   patch((m) => {
                     m.theatre.ldPerBeds = v;
@@ -259,6 +300,7 @@ export function CapacityTab({ model, result, onChange }: Props) {
                 className="mt-1"
                 value={model.theatre.cathLabCount}
                 min={0}
+                disabled={readOnly}
                 onChange={(v) =>
                   patch((m) => {
                     m.theatre.cathLabCount = v;
@@ -288,32 +330,38 @@ export function CapacityTab({ model, result, onChange }: Props) {
                 <button
                   type="button"
                   className="min-w-0 flex-1 text-left text-sm hover:text-teal-800"
-                  onClick={() => setOpenSpecId(spec.id)}
+                  onClick={() => {
+                    if (!readOnly) setOpenSpecId(spec.id);
+                  }}
                 >
                   {spec.name}
                 </button>
                 <Switch
                   checked={spec.enabled}
+                  disabled={readOnly}
                   onCheckedChange={(checked) =>
                     patch((m) => {
                       m.specialties[index].enabled = Boolean(checked);
                     })
                   }
                 />
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={() =>
-                    patch((m) => {
-                      m.specialties = m.specialties.filter((_, i) => i !== index);
-                    })
-                  }
-                >
-                  <Trash2 />
-                </Button>
+                {readOnly ? null : (
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() =>
+                      patch((m) => {
+                        m.specialties = m.specialties.filter((_, i) => i !== index);
+                      })
+                    }
+                  >
+                    <Trash2 />
+                  </Button>
+                )}
               </li>
             ))}
           </ul>
+          {readOnly ? null : (
           <form
             className="mt-3 flex gap-2"
             onSubmit={(event) => {
@@ -343,6 +391,7 @@ export function CapacityTab({ model, result, onChange }: Props) {
               Add
             </Button>
           </form>
+          )}
         </section>
       </aside>
 

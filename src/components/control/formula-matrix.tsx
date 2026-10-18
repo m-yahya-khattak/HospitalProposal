@@ -13,6 +13,7 @@ type Props = {
   filter: string;
   onPatchItem: (itemId: string, contributions: Formula[]) => void;
   onOpenItem: (itemId: string) => void;
+  readOnly?: boolean;
 };
 
 export function FormulaMatrix({
@@ -21,6 +22,7 @@ export function FormulaMatrix({
   filter,
   onPatchItem,
   onOpenItem,
+  readOnly,
 }: Props) {
   const sources = sourceOptions(model);
   const groups = useMemo(() => {
@@ -90,7 +92,9 @@ export function FormulaMatrix({
                     <button
                       type="button"
                       className="line-clamp-2 text-left font-medium hover:text-teal-800"
-                      onClick={() => onOpenItem(item.id)}
+                      onClick={() => {
+                        if (!readOnly) onOpenItem(item.id);
+                      }}
                     >
                       {item.name}
                     </button>
@@ -108,10 +112,11 @@ export function FormulaMatrix({
                         <CellEditor
                           source={source}
                           cell={rule.cells[source.id] ?? null}
-                          open={openKey === key}
-                          onOpenChange={(open) =>
-                            setOpenKey(open ? key : null)
-                          }
+                          open={!readOnly && openKey === key}
+                          onOpenChange={(open) => {
+                            if (readOnly) return;
+                            setOpenKey(open ? key : null);
+                          }}
                           onChange={(cell) =>
                             onPatchItem(
                               item.id,

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CapacityTab } from "@/components/control/capacity-tab";
 import { CapexTab } from "@/components/control/capex-tab";
+import { GuestsPanel } from "@/components/control/guests-panel";
 import { ItemsTab } from "@/components/control/items-tab";
 import { QuotesTab } from "@/components/control/quotes-tab";
 import { KpiStrip } from "@/components/control/kpi-strip";
@@ -13,8 +14,10 @@ import { CurrencySwitcher } from "@/components/currency-switcher";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePlanningModel } from "@/hooks/use-planning-model";
+import { formatAccessUntil } from "@/lib/access";
+import { evaluate, scaleHospitalBeds } from "@/lib/engine";
 import { createClient } from "@/lib/supabase/client";
-import { ChevronDown, ExternalLink, FolderOpen, LogOut, RotateCcw } from "lucide-react";
+import { ChevronDown, ExternalLink, FolderOpen, LogOut, RotateCcw, UserPlus } from "lucide-react";
 
 export function Studio({
   slug,
@@ -24,7 +27,7 @@ export function Studio({
   panelOpen?: boolean;
 }) {
   const hasProject = Boolean(slug);
-  const planning = usePlanningModel(slug ?? "", { requireOwner: true });
+  const planning = usePlanningModel(slug ?? "");
   const {
     model,
     result,
@@ -34,13 +37,42 @@ export function Studio({
     userEmail,
     persistError,
     projectName,
+    projectId,
+    access,
     hydrated,
     notFound,
   } = planning;
   const [tab, setTab] = useState("capacity");
   const [itemFilter, setItemFilter] = useState("all");
   const [panelOpen, setPanelOpen] = useState(initialPanelOpen || !slug);
+  const [guestsOpen, setGuestsOpen] = useState(false);
+  const [previewBeds, setPreviewBeds] = useState<number | null>(null);
   const router = useRouter();
+  const visitor = access.kind === "visitor";
+  const owner = access.kind === "owner";
+  const canScaleBeds =
+    access.kind === "owner" ||
+    (access.kind === "visitor" && access.canScaleBeds);
+
+  useEffect(() => {
+    setPreviewBeds(null);
+  }, [slug]);
+
+  const viewModel = useMemo(() => {
+    if (!visitor || previewBeds == null || previewBeds === model.totalBeds) {
+      return model;
+    }
+    const next = structuredClone(model);
+    scaleHospitalBeds(next, previewBeds);
+    return next;
+  }, [visitor, previewBeds, model]);
+
+  const viewResult = useMemo(
+    () => (viewModel === model ? result : evaluate(viewModel)),
+    [viewModel, model, result],
+  );
+
+  const onScaleBeds = visitor && canScaleBeds ? setPreviewBeds : undefined;
 
   const openDisplay = () => {
     if (!slug) return;
@@ -62,7 +94,9 @@ export function Studio({
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-6">
           <div>
             <p className="text-xs font-medium text-teal-800">
-              Project planning
+              {access.kind === "visitor"
+                ? `Visitor · until ${formatAccessUntil(access.expiresAt)}`
+                : "Project planning"}
             </p>
             <h1 className="font-heading text-2xl tracking-tight">
               {missing
@@ -73,11 +107,17 @@ export function Studio({
             </h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" onClick={() => setPanelOpen(true)}>
-              <FolderOpen data-icon="inline-start" />
-              {userEmail ?? "Projects"}
-              <ChevronDown data-icon="inline-end" />
-            </Button>
+            {visitor ? (
+              <span className="rounded-full bg-stone-100 px-2.5 py-1 text-xs text-muted-foreground">
+                {userEmail}
+              </span>
+            ) : (
+              <Button variant="outline" onClick={() => setPanelOpen(true)}>
+                <FolderOpen data-icon="inline-start" />
+                {userEmail ?? "Projects"}
+                <ChevronDown data-icon="inline-end" />
+              </Button>
+            )}
             {hasProject && !missing ? (
               <>
                 <span
@@ -90,21 +130,29 @@ export function Studio({
                   {live ? "Live from database" : "Connecting…"}
                 </span>
                 <CurrencySwitcher />
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    if (
-                      window.confirm(
-                        "Restore the master planning sheet for this project? Saved edits on this project will be replaced.",
-                      )
-                    ) {
-                      reset();
-                    }
-                  }}
-                >
-                  <RotateCcw data-icon="inline-start" />
-                  Reset master
-                </Button>
+                {owner ? (
+                  <>
+                    <Button variant="outline" onClick={() => setGuestsOpen(true)}>
+                      <UserPlus data-icon="inline-start" />
+                      Visitors
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            "Restore the master planning sheet for this project? Saved edits on this project will be replaced.",
+                          )
+                        ) {
+                          reset();
+                        }
+                      }}
+                    >
+                      <RotateCcw data-icon="inline-start" />
+                      Reset master
+                    </Button>
+                  </>
+                ) : null}
                 <Button onClick={openDisplay}>
                   <ExternalLink data-icon="inline-start" />
                   Open display
@@ -117,15 +165,15 @@ export function Studio({
             </Button>
           </div>
         </div>
-        {persistError && hasProject ? (
+        {persistError && hasProject && owner ? (
           <p className="border-t bg-red-50 px-4 py-2 text-sm text-destructive lg:px-6">
             Could not save to Supabase: {persistError}
           </p>
         ) : null}
         {hasProject && !missing ? (
           <KpiStrip
-            result={result}
-            labels={model.categoryLabels}
+            result={viewResult}
+            labels={viewModel.categoryLabels}
             onSelectTheatres={() => setTab("capacity")}
             onSelectCategory={(id) => {
               setItemFilter(id);
@@ -138,7 +186,7 @@ export function Studio({
       <main className="px-4 py-6 lg:px-6">
         {missing ? (
           <p className="text-sm text-muted-foreground">
-            This project does not exist or belongs to another operator. Open
+            This project does not exist or you do not have access. Open
             Projects to pick another.
           </p>
         ) : !hasProject ? (
@@ -169,41 +217,67 @@ export function Studio({
                 <TabsTrigger value="capex">CAPEX</TabsTrigger>
               </TabsList>
               <TabsContent value="capacity" className="pt-6">
-                <CapacityTab model={model} result={result} onChange={setModel} />
+                <CapacityTab
+                  model={viewModel}
+                  result={viewResult}
+                  onChange={setModel}
+                  readOnly={visitor}
+                  onScaleBeds={onScaleBeds}
+                />
               </TabsContent>
               <TabsContent value="items" className="pt-6">
                 <ItemsTab
-                  model={model}
-                  result={result}
+                  model={viewModel}
+                  result={viewResult}
                   onChange={setModel}
                   filter={itemFilter}
                   onFilterChange={setItemFilter}
+                  readOnly={visitor}
                 />
               </TabsContent>
               <TabsContent value="quotes" className="pt-6">
-                <QuotesTab model={model} onChange={setModel} />
+                <QuotesTab
+                  model={viewModel}
+                  onChange={setModel}
+                  readOnly={visitor}
+                />
               </TabsContent>
               <TabsContent value="capex" className="pt-6">
-                <CapexTab model={model} result={result} onChange={setModel} />
+                <CapexTab
+                  model={viewModel}
+                  result={viewResult}
+                  onChange={setModel}
+                  readOnly={visitor}
+                  onScaleBeds={onScaleBeds}
+                />
               </TabsContent>
             </Tabs>
           </>
         )}
       </main>
 
-      <ProjectPanel
-        open={panelOpen}
-        onClose={() => setPanelOpen(false)}
-        currentSlug={slug}
-      />
+      {visitor ? null : (
+        <ProjectPanel
+          open={panelOpen}
+          onClose={() => setPanelOpen(false)}
+          currentSlug={slug}
+        />
+      )}
+      {owner && projectId ? (
+        <GuestsPanel
+          projectId={projectId}
+          open={guestsOpen}
+          onOpenChange={setGuestsOpen}
+        />
+      ) : null}
     </div>
   );
 
   return (
     <CurrencyProvider
-      fx={model.fx}
+      fx={viewModel.fx}
       onFxChange={
-        hasProject && !missing
+        hasProject && !missing && owner
           ? (fx) => setModel((current) => ({ ...current, fx }))
           : undefined
       }

@@ -38,6 +38,7 @@ type Props = {
   onChange: (next: PlanningModel) => void;
   filter: string;
   onFilterChange: (filter: string) => void;
+  readOnly?: boolean;
 };
 
 function ItemRow({
@@ -49,6 +50,7 @@ function ItemRow({
   onOpen,
   onPatch,
   onDelete,
+  readOnly,
 }: {
   item: PlanningModel["items"][number];
   index: number;
@@ -58,6 +60,7 @@ function ItemRow({
   onOpen: () => void;
   onPatch: (fn: (m: PlanningModel) => void) => void;
   onDelete: () => void;
+  readOnly?: boolean;
 }) {
   const premiumQuote = quoteById(quotes, item.premiumQuoteId);
   const budgetQuote = quoteById(quotes, item.budgetQuoteId);
@@ -77,6 +80,7 @@ function ItemRow({
           value={item.premiumUnit}
           min={0}
           suffix="USD"
+          disabled={readOnly}
           onChange={(value) =>
             onPatch((m) => {
               m.items[index].premiumUnit = value;
@@ -95,6 +99,7 @@ function ItemRow({
           value={item.budgetUnit}
           min={0}
           suffix="USD"
+          disabled={readOnly}
           onChange={(value) =>
             onPatch((m) => {
               m.items[index].budgetUnit = value;
@@ -110,15 +115,20 @@ function ItemRow({
       </div>
       <Switch
         checked={item.enabled}
+        disabled={readOnly}
         onCheckedChange={(checked) =>
           onPatch((m) => {
             m.items[index].enabled = Boolean(checked);
           })
         }
       />
-      <Button variant="ghost" size="icon-sm" onClick={onDelete}>
-        <Trash2 />
-      </Button>
+      {readOnly ? (
+        <span />
+      ) : (
+        <Button variant="ghost" size="icon-sm" onClick={onDelete}>
+          <Trash2 />
+        </Button>
+      )}
     </li>
   );
 }
@@ -129,6 +139,7 @@ export function ItemsTab({
   onChange,
   filter,
   onFilterChange,
+  readOnly,
 }: Props) {
   const [view, setView] = useState<"list" | "matrix">("list");
   const [open, setOpen] = useState(false);
@@ -198,6 +209,7 @@ export function ItemsTab({
               Matrix
             </Button>
           </div>
+          {readOnly ? null : (
           <Button
             onClick={() => {
               setName("");
@@ -208,6 +220,7 @@ export function ItemsTab({
             <Plus data-icon="inline-start" />
             Add item
           </Button>
+          )}
         </div>
       </div>
 
@@ -222,7 +235,7 @@ export function ItemsTab({
             >
               {id === "all" ? "All" : categoryLabel(id, labels)}
             </Button>
-            {id !== "all" ? (
+            {id !== "all" && !readOnly ? (
               <Button
                 size="sm"
                 variant={filter === id ? "default" : "outline"}
@@ -236,6 +249,7 @@ export function ItemsTab({
           </div>
         ))}
       </div>
+      {readOnly ? null : (
       <form
         className="flex max-w-md gap-2"
         onSubmit={(event) => {
@@ -262,12 +276,14 @@ export function ItemsTab({
           Add
         </Button>
       </form>
+      )}
 
       {view === "matrix" ? (
         <FormulaMatrix
           model={model}
           result={result}
           filter={filter}
+          readOnly={readOnly}
           onPatchItem={patchItem}
           onOpenItem={setItemId}
         />
@@ -306,7 +322,10 @@ export function ItemsTab({
                       qty={qty}
                       sources={sources}
                       quotes={model.quotes ?? []}
-                      onOpen={() => setItemId(item.id)}
+                      readOnly={readOnly}
+                      onOpen={() => {
+                        if (!readOnly) setItemId(item.id);
+                      }}
                       onPatch={patch}
                       onDelete={() =>
                         patch((m) => {

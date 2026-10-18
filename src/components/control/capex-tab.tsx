@@ -21,11 +21,21 @@ type Props = {
   model: PlanningModel;
   result: Evaluation;
   onChange: (next: PlanningModel) => void;
+  readOnly?: boolean;
+  onScaleBeds?: (beds: number) => void;
 };
 
-export function CapexTab({ model, result, onChange }: Props) {
+export function CapexTab({
+  model,
+  result,
+  onChange,
+  readOnly,
+  onScaleBeds,
+}: Props) {
   const money = useMoney();
+  const canScale = Boolean(onScaleBeds) || !readOnly;
   const patch = (fn: (m: PlanningModel) => void) => {
+    if (readOnly) return;
     const next = structuredClone(model);
     fn(next);
     onChange(next);
@@ -66,6 +76,7 @@ export function CapexTab({ model, result, onChange }: Props) {
                     <NumberInput
                       value={band.beds}
                       min={1}
+                      disabled={readOnly}
                       onChange={(v) =>
                         patch((m) => {
                           m.capex.areaBands[index].beds = v;
@@ -77,6 +88,7 @@ export function CapexTab({ model, result, onChange }: Props) {
                     <NumberInput
                       value={band.sqftPerBed}
                       min={1}
+                      disabled={readOnly}
                       onChange={(v) =>
                         patch((m) => {
                           m.capex.areaBands[index].sqftPerBed = v;
@@ -107,6 +119,7 @@ export function CapexTab({ model, result, onChange }: Props) {
                       value={line.ratePerSqft}
                       min={0}
                       suffix={BASE_CURRENCY}
+                      disabled={readOnly}
                       onChange={(v) =>
                         patch((m) => {
                           m.capex.lines[index].ratePerSqft = v;
@@ -135,6 +148,7 @@ export function CapexTab({ model, result, onChange }: Props) {
                   <TableCell className="text-right">
                     <Switch
                       checked={!excluded.has(id)}
+                      disabled={readOnly}
                       onCheckedChange={(checked) =>
                         setCategoryInCapex(id, Boolean(checked))
                       }
@@ -157,11 +171,17 @@ export function CapexTab({ model, result, onChange }: Props) {
               value={Math.round(result.areaSqft)}
               min={1}
               suffix="sq.ft"
-              onChange={(area) =>
+              disabled={!canScale}
+              onChange={(area) => {
+                const beds = bedsFromArea(area, model.capex.areaBands);
+                if (onScaleBeds) {
+                  onScaleBeds(beds);
+                  return;
+                }
                 patch((m) => {
-                  scaleHospitalBeds(m, bedsFromArea(area, m.capex.areaBands));
-                })
-              }
+                  scaleHospitalBeds(m, beds);
+                });
+              }}
             />
           </div>
           <div>
@@ -172,11 +192,16 @@ export function CapexTab({ model, result, onChange }: Props) {
               min={10}
               max={2000}
               suffix="beds"
-              onChange={(total) =>
+              disabled={!canScale}
+              onChange={(total) => {
+                if (onScaleBeds) {
+                  onScaleBeds(total);
+                  return;
+                }
                 patch((m) => {
                   scaleHospitalBeds(m, total);
-                })
-              }
+                });
+              }}
             />
           </div>
           <p className="mb-2 text-sm text-muted-foreground">

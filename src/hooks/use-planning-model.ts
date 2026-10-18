@@ -2,18 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cloneSeed, seedModel } from "@/data/seed-model";
+import { type ProjectAccess, visitorExpired } from "@/lib/access";
 import { normalizePlanningModel } from "@/lib/currency";
 import { evaluate } from "@/lib/engine";
 import { createClient } from "@/lib/supabase/client";
 import { parsePlanningModel } from "@/lib/sync";
 import type { PlanningModel } from "@/lib/types";
 
-type Options = {
-  requireOwner?: boolean;
-};
-
-export function usePlanningModel(slug: string, options: Options = {}) {
-  const requireOwner = options.requireOwner ?? false;
+export function usePlanningModel(slug: string) {
   const [model, setModelState] = useState<PlanningModel>(seedModel);
   const [projectName, setProjectName] = useState(slug);
   const [hydrated, setHydrated] = useState(false);
@@ -21,10 +17,12 @@ export function usePlanningModel(slug: string, options: Options = {}) {
   const [live, setLive] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [persistError, setPersistError] = useState<string | null>(null);
+  const [access, setAccess] = useState<ProjectAccess>({ kind: "none" });
   const writingRef = useRef(false);
   const persistTimer = useRef<number | undefined>(undefined);
   const supabaseRef = useRef<ReturnType<typeof createClient>>(null);
   const projectIdRef = useRef<string | null>(null);
+  const canWriteRef = useRef(false);
 
   useEffect(() => {
     const supabase = createClient();
@@ -32,7 +30,9 @@ export function usePlanningModel(slug: string, options: Options = {}) {
     setHydrated(false);
     setNotFound(false);
     setLive(false);
+    setAccess({ kind: "none" });
     projectIdRef.current = null;
+    canWriteRef.current = false;
 
     if (!supabase) {
       setPersistError(
@@ -72,15 +72,48 @@ export function usePlanningModel(slug: string, options: Options = {}) {
         return;
       }
 
-      const ownerOk = !requireOwner || Boolean(user && data?.owner_id === user.id);
       const parsed = parsePlanningModel(data?.model);
-      if (!data || !parsed || !ownerOk) {
+      if (!data || !parsed || !user) {
+        setNotFound(true);
+        setHydrated(true);
+        return;
+      }
+
+      let nextAccess: ProjectAccess = { kind: "none" };
+      if (data.owner_id === user.id) {
+        nextAccess = { kind: "owner", projectId: data.id };
+      } else {
+        const { data: guest } = await supabase
+          .from("project_guests")
+          .select("expires_at, revoked_at, can_scale_beds")
+          .eq("user_id", user.id)
+          .eq("project_id", data.id)
+          .maybeSingle();
+        if (
+          guest &&
+          !guest.revoked_at &&
+          typeof guest.expires_at === "string" &&
+          !visitorExpired(guest.expires_at)
+        ) {
+          nextAccess = {
+            kind: "visitor",
+            projectId: data.id,
+            expiresAt: guest.expires_at,
+            canScaleBeds: guest.can_scale_beds !== false,
+          };
+        }
+      }
+
+      if (cancelled) return;
+      if (nextAccess.kind === "none") {
         setNotFound(true);
         setHydrated(true);
         return;
       }
 
       projectIdRef.current = data.id;
+      canWriteRef.current = nextAccess.kind === "owner";
+      setAccess(nextAccess);
       setProjectName(data.name);
       setModelState(parsed);
       setPersistError(null);
@@ -126,13 +159,13 @@ export function usePlanningModel(slug: string, options: Options = {}) {
       void supabase.removeChannel(channel);
       subscription.unsubscribe();
     };
-  }, [requireOwner, slug]);
+  }, [slug]);
 
   const persist = useCallback(
     (next: PlanningModel) => {
       const supabase = supabaseRef.current;
       const id = projectIdRef.current;
-      if (!supabase || !id) return;
+      if (!supabase || !id || !canWriteRef.current) return;
       if (persistTimer.current) window.clearTimeout(persistTimer.current);
       persistTimer.current = window.setTimeout(() => {
         writingRef.current = true;
@@ -183,6 +216,8 @@ export function usePlanningModel(slug: string, options: Options = {}) {
     userEmail,
     persistError,
     projectName,
+    projectId: access.kind === "none" ? null : access.projectId,
+    access,
     slug,
   };
 }

@@ -12,6 +12,7 @@ type Props = {
   step?: number;
   className?: string;
   suffix?: string;
+  disabled?: boolean;
 };
 
 export function NumberInput({
@@ -22,6 +23,7 @@ export function NumberInput({
   step = 1,
   className,
   suffix,
+  disabled,
 }: Props) {
   const [text, setText] = useState(String(value));
 
@@ -49,6 +51,7 @@ export function NumberInput({
         inputMode="decimal"
         value={text}
         step={step}
+        disabled={disabled}
         className={cn(
           "font-mono tabular-nums",
           suffix && (suffix.length > 1 ? "pr-12" : "pr-8"),

@@ -40,9 +40,10 @@ const PAGE = 40;
 type Props = {
   model: PlanningModel;
   onChange: (next: PlanningModel) => void;
+  readOnly?: boolean;
 };
 
-export function QuotesTab({ model, onChange }: Props) {
+export function QuotesTab({ model, onChange, readOnly }: Props) {
   const money = useMoney();
   const live = useExchangeRates();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -102,6 +103,7 @@ export function QuotesTab({ model, onChange }: Props) {
             {quotes.length} products
           </p>
         </div>
+        {readOnly ? null : (
         <div className="flex flex-wrap gap-2">
           <input
             ref={fileRef}
@@ -127,6 +129,7 @@ export function QuotesTab({ model, onChange }: Props) {
             Add quote
           </Button>
         </div>
+        )}
       </div>
 
       <div className="relative max-w-md">
@@ -156,7 +159,9 @@ export function QuotesTab({ model, onChange }: Props) {
         </div>
         {slice.length === 0 ? (
           <p className="px-4 py-8 text-sm text-muted-foreground">
-            No quotes yet. Upload the supplier workbook or add one.
+            {readOnly
+              ? "No quotes."
+              : "No quotes yet. Upload the supplier workbook or add one."}
           </p>
         ) : (
           <ul className="divide-y">
@@ -165,7 +170,9 @@ export function QuotesTab({ model, onChange }: Props) {
                 <button
                   type="button"
                   className="grid w-full items-center gap-1 px-4 py-3 text-left hover:bg-stone-50 md:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,0.7fr)_80px] md:gap-3"
-                  onClick={() => setEditId(quote.id)}
+                  onClick={() => {
+                    if (!readOnly) setEditId(quote.id);
+                  }}
                 >
                   <span className="min-w-0">
                     <span className="block truncate font-medium">{quote.name}</span>

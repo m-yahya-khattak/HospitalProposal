@@ -9,8 +9,13 @@ export const metadata: Metadata = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; expired?: string }>;
 }) {
-  const { next } = await searchParams;
-  return <LoginForm nextPath={safeNextPath(next)} />;
+  const { next, expired } = await searchParams;
+  return (
+    <LoginForm
+      nextPath={safeNextPath(next)}
+      expired={expired === "1"}
+    />
+  );
 }
