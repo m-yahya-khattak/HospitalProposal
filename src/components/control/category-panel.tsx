@@ -86,6 +86,15 @@ export function CategoryPanel({
                   };
                 });
               }}
+              onBlur={(event) => {
+                const trimmed = event.target.value.trim();
+                patch((m) => {
+                  const next = { ...(m.categoryLabels ?? {}) };
+                  if (trimmed) next[categoryId] = trimmed;
+                  else delete next[categoryId];
+                  m.categoryLabels = next;
+                });
+              }}
             />
           </div>
 

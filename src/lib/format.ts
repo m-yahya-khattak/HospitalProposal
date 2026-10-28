@@ -34,7 +34,9 @@ export function categoryLabel(
   category: string,
   labels?: Record<string, string>,
 ) {
-  if (labels?.[category]) return labels[category];
+  // Keep "" while renaming — truthy checks snap the input back to the default.
+  const custom = labels?.[category];
+  if (typeof custom === "string") return custom;
   switch (category) {
     case "furniture":
       return "Furniture";
