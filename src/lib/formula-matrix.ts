@@ -48,9 +48,11 @@ export function parseContributions(contributions: Formula[]): ItemQtyRule {
   const cells: Record<string, MatrixCell> = {};
   const leftover: Formula[] = [];
   let constant = 0;
+  let hasConstant = false;
 
   for (const formula of contributions) {
     if (formula.type === "constant") {
+      hasConstant = true;
       constant += formula.value;
       continue;
     }
@@ -67,8 +69,16 @@ export function parseContributions(contributions: Formula[]): ItemQtyRule {
   }
 
   const hasCells = Object.keys(cells).length > 0;
+  // Empty list = hospital with no rules yet. Only an explicit constant formula
+  // is "Always this many" (including fixed 0), so the mode toggle can stick.
+  const kind: ItemQtyRule["kind"] =
+    hasCells || leftover.length > 0
+      ? "hospital"
+      : hasConstant
+        ? "fixed"
+        : "hospital";
   return {
-    kind: hasCells || leftover.length > 0 ? "hospital" : "fixed",
+    kind,
     constant,
     cells,
     leftover,
