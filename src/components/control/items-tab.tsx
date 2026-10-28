@@ -28,6 +28,11 @@ import { newId, slugify } from "@/lib/id";
 import { sourceOptions } from "@/lib/formula-label";
 import { formulaSentence } from "@/lib/formula-matrix";
 import { categoryLabel, formatInt, modelCategories } from "@/lib/format";
+import {
+  canRead,
+  canWrite,
+  type GuestPermissions,
+} from "@/lib/access";
 import { quoteById } from "@/lib/quotes";
 import type { Evaluation, Formula, PlanningModel, QuoteProduct } from "@/lib/types";
 import { LayoutGrid, List, Pencil, Plus, Trash2 } from "lucide-react";
@@ -36,9 +41,11 @@ type Props = {
   model: PlanningModel;
   result: Evaluation;
   onChange: (next: PlanningModel) => void;
+  onLocalChange?: (next: PlanningModel) => void;
   filter: string;
   onFilterChange: (filter: string) => void;
-  readOnly?: boolean;
+  permissions: GuestPermissions;
+  canDelete?: boolean;
 };
 
 function ItemRow({
@@ -49,8 +56,10 @@ function ItemRow({
   quotes,
   onOpen,
   onPatch,
+  onLocalPatch,
   onDelete,
-  readOnly,
+  itemsWrite,
+  canDelete,
 }: {
   item: PlanningModel["items"][number];
   index: number;
@@ -59,8 +68,10 @@ function ItemRow({
   quotes: QuoteProduct[];
   onOpen: () => void;
   onPatch: (fn: (m: PlanningModel) => void) => void;
+  onLocalPatch?: (fn: (m: PlanningModel) => void) => void;
   onDelete: () => void;
-  readOnly?: boolean;
+  itemsWrite: boolean;
+  canDelete?: boolean;
 }) {
   const premiumQuote = quoteById(quotes, item.premiumQuoteId);
   const budgetQuote = quoteById(quotes, item.budgetQuoteId);
@@ -80,7 +91,7 @@ function ItemRow({
           value={item.premiumUnit}
           min={0}
           suffix="USD"
-          disabled={readOnly}
+          disabled={!itemsWrite}
           onChange={(value) =>
             onPatch((m) => {
               m.items[index].premiumUnit = value;
@@ -99,7 +110,7 @@ function ItemRow({
           value={item.budgetUnit}
           min={0}
           suffix="USD"
-          disabled={readOnly}
+          disabled={!itemsWrite}
           onChange={(value) =>
             onPatch((m) => {
               m.items[index].budgetUnit = value;
@@ -115,19 +126,19 @@ function ItemRow({
       </div>
       <Switch
         checked={item.enabled}
-        disabled={readOnly}
-        onCheckedChange={(checked) =>
-          onPatch((m) => {
+        onCheckedChange={(checked) => {
+          const apply = itemsWrite ? onPatch : onLocalPatch;
+          apply?.((m) => {
             m.items[index].enabled = Boolean(checked);
-          })
-        }
+          });
+        }}
       />
-      {readOnly ? (
-        <span />
-      ) : (
+      {canDelete && itemsWrite ? (
         <Button variant="ghost" size="icon-sm" onClick={onDelete}>
           <Trash2 />
         </Button>
+      ) : (
+        <span />
       )}
     </li>
   );
@@ -137,10 +148,17 @@ export function ItemsTab({
   model,
   result,
   onChange,
+  onLocalChange,
   filter,
   onFilterChange,
-  readOnly,
+  permissions,
+  canDelete,
 }: Props) {
+  const itemsWrite = canWrite(permissions, "items");
+  const itemsRead = canRead(permissions, "items");
+  const categoriesWrite = canWrite(permissions, "categories");
+  const formulasWrite = canWrite(permissions, "formulas");
+  const formulasRead = canRead(permissions, "formulas");
   const [view, setView] = useState<"list" | "matrix">("list");
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -157,6 +175,19 @@ export function ItemsTab({
     fn(next);
     onChange(next);
   };
+  const localPatch = (fn: (m: PlanningModel) => void) => {
+    const next = structuredClone(model);
+    fn(next);
+    onLocalChange?.(next);
+  };
+
+  if (!itemsRead && !formulasRead && !canRead(permissions, "categories")) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        You do not have access to items on this project.
+      </p>
+    );
+  }
 
   const grouped = useMemo(() => {
     const visible = model.items
@@ -209,7 +240,7 @@ export function ItemsTab({
               Matrix
             </Button>
           </div>
-          {readOnly ? null : (
+          {itemsWrite ? (
           <Button
             onClick={() => {
               setName("");
@@ -220,7 +251,7 @@ export function ItemsTab({
             <Plus data-icon="inline-start" />
             Add item
           </Button>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -235,7 +266,7 @@ export function ItemsTab({
             >
               {id === "all" ? "All" : categoryLabel(id, labels)}
             </Button>
-            {id !== "all" && !readOnly ? (
+            {id !== "all" && categoriesWrite ? (
               <Button
                 size="sm"
                 variant={filter === id ? "default" : "outline"}
@@ -249,7 +280,7 @@ export function ItemsTab({
           </div>
         ))}
       </div>
-      {readOnly ? null : (
+      {categoriesWrite ? (
       <form
         className="flex max-w-md gap-2"
         onSubmit={(event) => {
@@ -276,18 +307,24 @@ export function ItemsTab({
           Add
         </Button>
       </form>
-      )}
+      ) : null}
 
-      {view === "matrix" ? (
+      {view === "matrix" && formulasRead ? (
         <FormulaMatrix
           model={model}
           result={result}
           filter={filter}
-          readOnly={readOnly}
+          readOnly={!formulasWrite}
           onPatchItem={patchItem}
-          onOpenItem={setItemId}
+          onOpenItem={(id) => {
+            if (itemsWrite || formulasWrite) setItemId(id);
+          }}
         />
-      ) : (
+      ) : view === "matrix" ? (
+        <p className="text-sm text-muted-foreground">
+          Quantity matrix is hidden for this visitor.
+        </p>
+      ) : itemsRead ? (
         <div className="space-y-6">
           {grouped.map((group) => (
             <section
@@ -322,11 +359,11 @@ export function ItemsTab({
                       qty={qty}
                       sources={sources}
                       quotes={model.quotes ?? []}
-                      readOnly={readOnly}
-                      onOpen={() => {
-                        if (!readOnly) setItemId(item.id);
-                      }}
+                      itemsWrite={itemsWrite}
+                      canDelete={canDelete}
+                      onOpen={() => setItemId(item.id)}
                       onPatch={patch}
+                      onLocalPatch={localPatch}
                       onDelete={() =>
                         patch((m) => {
                           m.items = m.items.filter((_, i) => i !== index);
@@ -339,9 +376,13 @@ export function ItemsTab({
             </section>
           ))}
         </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          Items list is hidden for this visitor.
+        </p>
       )}
 
-      {manageId ? (
+      {manageId && categoriesWrite ? (
         <CategoryPanel
           categoryId={manageId}
           model={model}
@@ -367,6 +408,9 @@ export function ItemsTab({
             if (!nextOpen) setItemId(null);
           }}
           onChange={onChange}
+          itemsWrite={itemsWrite}
+          formulasWrite={formulasWrite}
+          canDelete={Boolean(canDelete && itemsWrite)}
           onDelete={() => {
             patch((m) => {
               m.items = m.items.filter((row) => row.id !== itemId);
@@ -376,7 +420,7 @@ export function ItemsTab({
         />
       ) : null}
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open && itemsWrite} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add item</DialogTitle>

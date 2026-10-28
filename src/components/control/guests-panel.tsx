@@ -20,8 +20,17 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Switch } from "@/components/ui/switch";
-import { formatAccessUntil, visitorExpired } from "@/lib/access";
+import {
+  GUEST_MODULES,
+  GUEST_MODULE_LABELS,
+  defaultGuestPermissions,
+  formatAccessUntil,
+  normalizeGuestPermissions,
+  visitorExpired,
+  type AccessLevel,
+  type GuestModule,
+  type GuestPermissions,
+} from "@/lib/access";
 import { createClient } from "@/lib/supabase/client";
 
 type GuestRow = {
@@ -29,6 +38,7 @@ type GuestRow = {
   label: string;
   login_email: string;
   can_scale_beds: boolean;
+  permissions?: GuestPermissions | null;
   expires_at: string;
   created_at: string;
 };
@@ -38,17 +48,86 @@ type Created = {
   login_email: string;
   password: string;
   expires_at: string;
+  permissions?: GuestPermissions;
 };
 
 const DAYS = [1, 3, 7, 14] as const;
 
 function guestSetupMessage(message: string) {
   const missing =
-    /schema cache|project_guests|create_project_guest|revoke_project_guest/i.test(
+    /schema cache|project_guests|create_project_guest|revoke_project_guest|get_guest_project|apply_guest_patch|permissions/i.test(
       message,
     );
   if (!missing) return message;
-  return "Visitor logins need a one-time database setup. In Supabase → SQL Editor, paste and run supabase/migrations/004_project_guests.sql, then try again.";
+  return "Visitor permissions need a database update. In Supabase → SQL Editor, run supabase/migrations/006_guest_permissions.sql, then try again.";
+}
+
+function LevelSelect({
+  value,
+  onChange,
+  allowNone = true,
+  allowWrite = true,
+}: {
+  value: AccessLevel;
+  onChange: (next: AccessLevel) => void;
+  allowNone?: boolean;
+  allowWrite?: boolean;
+}) {
+  return (
+    <Select
+      value={value}
+      onValueChange={(next) => {
+        if (next === "none" || next === "read" || next === "write") onChange(next);
+      }}
+    >
+      <SelectTrigger className="h-8 w-[7.5rem]">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {allowNone ? <SelectItem value="none">Hidden</SelectItem> : null}
+        <SelectItem value="read">{allowWrite ? "Read" : "Visible"}</SelectItem>
+        {allowWrite ? <SelectItem value="write">Write</SelectItem> : null}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function PermissionGrid({
+  value,
+  onChange,
+}: {
+  value: GuestPermissions;
+  onChange: (next: GuestPermissions) => void;
+}) {
+  const set = (key: GuestModule, level: AccessLevel) => {
+    const next = { ...value, [key]: level };
+    if (key === "quotePrices" && level === "write") next.quotePrices = "read";
+    if (key === "quotes" && level === "write" && next.quotePrices === "none") {
+      next.quotePrices = "read";
+    }
+    onChange(next);
+  };
+
+  return (
+    <ul className="divide-y rounded-xl ring-1 ring-stone-200">
+      {GUEST_MODULES.map((key) => (
+        <li
+          key={key}
+          className="flex items-center justify-between gap-3 px-3 py-2"
+        >
+          <p className="min-w-0 text-sm">{GUEST_MODULE_LABELS[key]}</p>
+          <LevelSelect
+            value={
+              key === "quotePrices" && value[key] !== "none" ? "read" : value[key]
+            }
+            onChange={(level) => set(key, level)}
+            allowNone={key !== "hospitalSize"}
+            allowWrite={key !== "quotePrices"}
+          />
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 export function GuestsPanel({
@@ -62,9 +141,11 @@ export function GuestsPanel({
 }) {
   const [label, setLabel] = useState("");
   const [days, setDays] = useState<number>(7);
-  const [canScaleBeds, setCanScaleBeds] = useState(true);
+  const [permissions, setPermissions] = useState(defaultGuestPermissions(true));
   const [rows, setRows] = useState<GuestRow[]>([]);
   const [created, setCreated] = useState<Created | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editPerms, setEditPerms] = useState<GuestPermissions | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -73,7 +154,9 @@ export function GuestsPanel({
     if (!supabase) return;
     const { data, error: queryError } = await supabase
       .from("project_guests")
-      .select("id, label, login_email, can_scale_beds, expires_at, created_at")
+      .select(
+        "id, label, login_email, can_scale_beds, permissions, expires_at, created_at",
+      )
       .eq("project_id", projectId)
       .is("revoked_at", null)
       .order("created_at", { ascending: false });
@@ -88,6 +171,9 @@ export function GuestsPanel({
     if (!open) return;
     setError(null);
     setCreated(null);
+    setEditId(null);
+    setEditPerms(null);
+    setPermissions(defaultGuestPermissions(true));
     void load();
   }, [open, projectId]);
 
@@ -102,7 +188,7 @@ export function GuestsPanel({
       p_project_id: projectId,
       p_label: label.trim() || "Visitor",
       p_days: days,
-      p_can_scale_beds: canScaleBeds,
+      p_permissions: permissions,
     });
     setPending(false);
     if (rpcError) {
@@ -119,6 +205,29 @@ export function GuestsPanel({
     void load();
   };
 
+  const onSavePerms = async () => {
+    if (!editId || !editPerms) return;
+    const supabase = createClient();
+    if (!supabase) return;
+    setPending(true);
+    setError(null);
+    const { error: rpcError } = await supabase.rpc(
+      "update_project_guest_permissions",
+      {
+        p_guest_id: editId,
+        p_permissions: editPerms,
+      },
+    );
+    setPending(false);
+    if (rpcError) {
+      setError(guestSetupMessage(rpcError.message));
+      return;
+    }
+    setEditId(null);
+    setEditPerms(null);
+    void load();
+  };
+
   const onRevoke = async (id: string) => {
     const supabase = createClient();
     if (!supabase) return;
@@ -131,17 +240,22 @@ export function GuestsPanel({
       return;
     }
     if (created?.guest_id === id) setCreated(null);
+    if (editId === id) {
+      setEditId(null);
+      setEditPerms(null);
+    }
     void load();
   };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent>
+      <SheetContent className="sm:max-w-lg">
         <SheetHeader>
           <div className="min-w-0">
             <SheetTitle>Visitor access</SheetTitle>
             <SheetDescription>
-              Temporary login for this project only. They cannot save edits.
+              Temporary login for this project. No delete. Write saves; read can
+              only view (switches preview locally).
             </SheetDescription>
           </div>
           <SheetCloseButton />
@@ -177,15 +291,9 @@ export function GuestsPanel({
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center justify-between rounded-xl bg-stone-50 px-3 py-2">
-              <Label htmlFor="guest-beds" className="font-normal">
-                Can change bed count
-              </Label>
-              <Switch
-                id="guest-beds"
-                checked={canScaleBeds}
-                onCheckedChange={(checked) => setCanScaleBeds(Boolean(checked))}
-              />
+            <div>
+              <p className="mb-2 text-sm font-medium">Permissions</p>
+              <PermissionGrid value={permissions} onChange={setPermissions} />
             </div>
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
             <Button type="submit" disabled={pending}>
@@ -204,6 +312,27 @@ export function GuestsPanel({
             </div>
           ) : null}
 
+          {editId && editPerms ? (
+            <div className="space-y-3 rounded-xl bg-stone-50 p-3">
+              <p className="text-sm font-medium">Edit permissions</p>
+              <PermissionGrid value={editPerms} onChange={setEditPerms} />
+              <div className="flex gap-2">
+                <Button disabled={pending} onClick={() => void onSavePerms()}>
+                  Save
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setEditId(null);
+                    setEditPerms(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
           <div>
             <p className="text-sm font-medium">Active</p>
             {rows.length === 0 ? (
@@ -212,6 +341,13 @@ export function GuestsPanel({
               <ul className="mt-2 divide-y rounded-xl ring-1 ring-stone-200">
                 {rows.map((row) => {
                   const expired = visitorExpired(row.expires_at);
+                  const perms = normalizeGuestPermissions(
+                    row.permissions,
+                    row.can_scale_beds,
+                  );
+                  const writes = GUEST_MODULES.filter((k) => perms[k] === "write")
+                    .map((k) => GUEST_MODULE_LABELS[k])
+                    .slice(0, 3);
                   return (
                     <li
                       key={row.id}
@@ -223,17 +359,31 @@ export function GuestsPanel({
                           {row.login_email}
                         </p>
                         <p className="mt-0.5 text-xs text-muted-foreground">
-                          {expired ? "Expired" : `Until ${formatAccessUntil(row.expires_at)}`}
-                          {row.can_scale_beds ? " · beds" : ""}
+                          {expired
+                            ? "Expired"
+                            : `Until ${formatAccessUntil(row.expires_at)}`}
+                          {writes.length ? ` · write: ${writes.join(", ")}` : ""}
                         </p>
                       </div>
-                      <Button
-                        size="xs"
-                        variant="ghost"
-                        onClick={() => void onRevoke(row.id)}
-                      >
-                        Revoke
-                      </Button>
+                      <div className="flex shrink-0 flex-col gap-1">
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditId(row.id);
+                            setEditPerms(perms);
+                          }}
+                        >
+                          Permissions
+                        </Button>
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          onClick={() => void onRevoke(row.id)}
+                        >
+                          Revoke
+                        </Button>
+                      </div>
                     </li>
                   );
                 })}

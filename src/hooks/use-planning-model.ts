@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cloneSeed, seedModel } from "@/data/seed-model";
-import { type ProjectAccess, visitorExpired } from "@/lib/access";
+import {
+  anyWrite,
+  normalizeGuestPermissions,
+  ownerPermissions,
+  type ProjectAccess,
+  visitorClaims,
+  visitorExpired,
+} from "@/lib/access";
 import { normalizePlanningModel } from "@/lib/currency";
 import { evaluate } from "@/lib/engine";
 import { createClient } from "@/lib/supabase/client";
@@ -22,7 +29,8 @@ export function usePlanningModel(slug: string) {
   const persistTimer = useRef<number | undefined>(undefined);
   const supabaseRef = useRef<ReturnType<typeof createClient>>(null);
   const projectIdRef = useRef<string | null>(null);
-  const canWriteRef = useRef(false);
+  const accessKindRef = useRef<ProjectAccess["kind"]>("none");
+  const canPersistRef = useRef(false);
 
   useEffect(() => {
     const supabase = createClient();
@@ -32,7 +40,8 @@ export function usePlanningModel(slug: string) {
     setLive(false);
     setAccess({ kind: "none" });
     projectIdRef.current = null;
-    canWriteRef.current = false;
+    accessKindRef.current = "none";
+    canPersistRef.current = false;
 
     if (!supabase) {
       setPersistError(
@@ -58,6 +67,53 @@ export function usePlanningModel(slug: string) {
       } = await supabase.auth.getUser();
       if (cancelled) return;
       setUserEmail(user?.email ?? null);
+      if (!user) {
+        setNotFound(true);
+        setHydrated(true);
+        return;
+      }
+
+      const claims = visitorClaims(user);
+      if (claims && !visitorExpired(claims.expiresAt)) {
+        const { data, error } = await supabase.rpc("get_guest_project", {
+          p_slug: slug,
+        });
+        if (cancelled) return;
+        if (error) {
+          setPersistError(error.message);
+          setNotFound(true);
+          setHydrated(true);
+          return;
+        }
+        const row = Array.isArray(data) ? data[0] : data;
+        const parsed = parsePlanningModel(row?.model);
+        if (!row?.project_id || !parsed) {
+          setNotFound(true);
+          setHydrated(true);
+          return;
+        }
+        const permissions = normalizeGuestPermissions(
+          row.permissions,
+          true,
+        );
+        const nextAccess: ProjectAccess = {
+          kind: "visitor",
+          projectId: row.project_id,
+          guestId: row.guest_id,
+          expiresAt: row.expires_at,
+          permissions,
+        };
+        projectIdRef.current = row.project_id;
+        accessKindRef.current = "visitor";
+        canPersistRef.current = anyWrite(permissions);
+        setAccess(nextAccess);
+        setProjectName(row.name);
+        setModelState(parsed);
+        setPersistError(null);
+        setLive(true);
+        setHydrated(true);
+        return;
+      }
 
       const { data, error } = await supabase
         .from("planning_projects")
@@ -73,46 +129,20 @@ export function usePlanningModel(slug: string) {
       }
 
       const parsed = parsePlanningModel(data?.model);
-      if (!data || !parsed || !user) {
+      if (!data || !parsed || data.owner_id !== user.id) {
         setNotFound(true);
         setHydrated(true);
         return;
       }
 
-      let nextAccess: ProjectAccess = { kind: "none" };
-      if (data.owner_id === user.id) {
-        nextAccess = { kind: "owner", projectId: data.id };
-      } else {
-        const { data: guest } = await supabase
-          .from("project_guests")
-          .select("expires_at, revoked_at, can_scale_beds")
-          .eq("user_id", user.id)
-          .eq("project_id", data.id)
-          .maybeSingle();
-        if (
-          guest &&
-          !guest.revoked_at &&
-          typeof guest.expires_at === "string" &&
-          !visitorExpired(guest.expires_at)
-        ) {
-          nextAccess = {
-            kind: "visitor",
-            projectId: data.id,
-            expiresAt: guest.expires_at,
-            canScaleBeds: guest.can_scale_beds !== false,
-          };
-        }
-      }
-
-      if (cancelled) return;
-      if (nextAccess.kind === "none") {
-        setNotFound(true);
-        setHydrated(true);
-        return;
-      }
-
+      const nextAccess: ProjectAccess = {
+        kind: "owner",
+        projectId: data.id,
+        permissions: ownerPermissions(),
+      };
       projectIdRef.current = data.id;
-      canWriteRef.current = nextAccess.kind === "owner";
+      accessKindRef.current = "owner";
+      canPersistRef.current = true;
       setAccess(nextAccess);
       setProjectName(data.name);
       setModelState(parsed);
@@ -133,8 +163,10 @@ export function usePlanningModel(slug: string) {
           filter: `slug=eq.${slug}`,
         },
         (payload) => {
+          // Visitors must not take raw model from realtime (quote prices).
+          if (accessKindRef.current === "visitor") return;
           if (writingRef.current) return;
-          const next = (payload.new as { model?: unknown; name?: string } | null);
+          const next = payload.new as { model?: unknown; name?: string } | null;
           if (next?.name) setProjectName(next.name);
           const parsed = parsePlanningModel(next?.model);
           if (parsed) {
@@ -161,26 +193,38 @@ export function usePlanningModel(slug: string) {
     };
   }, [slug]);
 
-  const persist = useCallback(
-    (next: PlanningModel) => {
-      const supabase = supabaseRef.current;
-      const id = projectIdRef.current;
-      if (!supabase || !id || !canWriteRef.current) return;
-      if (persistTimer.current) window.clearTimeout(persistTimer.current);
-      persistTimer.current = window.setTimeout(() => {
-        writingRef.current = true;
+  const persist = useCallback((next: PlanningModel) => {
+    const supabase = supabaseRef.current;
+    const id = projectIdRef.current;
+    if (!supabase || !id || !canPersistRef.current) return;
+    if (persistTimer.current) window.clearTimeout(persistTimer.current);
+    persistTimer.current = window.setTimeout(() => {
+      writingRef.current = true;
+      if (accessKindRef.current === "visitor") {
         void supabase
-          .from("planning_projects")
-          .update({ model: next })
-          .eq("id", id)
-          .then(({ error }) => {
+          .rpc("apply_guest_patch", { p_project_id: id, p_model: next })
+          .then(({ data, error }) => {
             writingRef.current = false;
-            setPersistError(error ? error.message : null);
+            if (error) {
+              setPersistError(error.message);
+              return;
+            }
+            setPersistError(null);
+            const parsed = parsePlanningModel(data);
+            if (parsed) setModelState(parsed);
           });
-      }, 300);
-    },
-    [],
-  );
+        return;
+      }
+      void supabase
+        .from("planning_projects")
+        .update({ model: next })
+        .eq("id", id)
+        .then(({ error }) => {
+          writingRef.current = false;
+          setPersistError(error ? error.message : null);
+        });
+    }, 300);
+  }, []);
 
   const setModel = useCallback(
     (next: PlanningModel | ((prev: PlanningModel) => PlanningModel)) => {
@@ -195,7 +239,20 @@ export function usePlanningModel(slug: string) {
     [persist],
   );
 
+  /** Local-only updates (visitor read toggles / previews). Never saved. */
+  const setLocalModel = useCallback(
+    (next: PlanningModel | ((prev: PlanningModel) => PlanningModel)) => {
+      setModelState((prev) =>
+        normalizePlanningModel(
+          typeof next === "function" ? next(prev) : next,
+        ),
+      );
+    },
+    [],
+  );
+
   const reset = useCallback(() => {
+    if (accessKindRef.current !== "owner") return;
     const quotes = model.quotes ?? [];
     const next = cloneSeed();
     next.title = projectName;
@@ -209,6 +266,7 @@ export function usePlanningModel(slug: string) {
     model,
     result,
     setModel,
+    setLocalModel,
     reset,
     hydrated,
     notFound,

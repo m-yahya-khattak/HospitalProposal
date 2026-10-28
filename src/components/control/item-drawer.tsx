@@ -44,6 +44,9 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   onChange: (next: PlanningModel) => void;
   onDelete: () => void;
+  itemsWrite?: boolean;
+  formulasWrite?: boolean;
+  canDelete?: boolean;
 };
 
 export function ItemDrawer({
@@ -54,6 +57,9 @@ export function ItemDrawer({
   onOpenChange,
   onChange,
   onDelete,
+  itemsWrite = true,
+  formulasWrite = true,
+  canDelete = true,
 }: Props) {
   const itemIndex = model.items.findIndex((row) => row.id === itemId);
   const item = model.items[itemIndex];
@@ -85,6 +91,7 @@ export function ItemDrawer({
   };
 
   const setContributions = (contributions: Formula[]) => {
+    if (!formulasWrite) return;
     patch((m) => {
       m.items[itemIndex].contributions = contributions;
     });
@@ -118,6 +125,7 @@ export function ItemDrawer({
               <Input
                 className="mt-1"
                 value={item.name}
+                disabled={!itemsWrite}
                 onChange={(event) =>
                   patch((m) => {
                     m.items[itemIndex].name = event.target.value;
@@ -129,6 +137,7 @@ export function ItemDrawer({
               <Label>Category</Label>
               <Select
                 value={item.category}
+                disabled={!itemsWrite}
                 onValueChange={(value) => {
                   if (!value) return;
                   patch((m) => {
@@ -159,6 +168,7 @@ export function ItemDrawer({
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">
                       {formatQuoteOriginal(premiumQuote)}
                     </p>
+                    {itemsWrite ? (
                     <Button
                       size="xs"
                       variant="ghost"
@@ -171,6 +181,7 @@ export function ItemDrawer({
                     >
                       Type instead
                     </Button>
+                    ) : null}
                   </div>
                 ) : (
                   <NumberInput
@@ -178,6 +189,7 @@ export function ItemDrawer({
                     value={item.premiumUnit}
                     min={0}
                     suffix="USD"
+                    disabled={!itemsWrite}
                     onChange={(value) =>
                       patch((m) => {
                         m.items[itemIndex].premiumUnit = value;
@@ -197,6 +209,7 @@ export function ItemDrawer({
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">
                       {formatQuoteOriginal(budgetQuote)}
                     </p>
+                    {itemsWrite ? (
                     <Button
                       size="xs"
                       variant="ghost"
@@ -209,6 +222,7 @@ export function ItemDrawer({
                     >
                       Type instead
                     </Button>
+                    ) : null}
                   </div>
                 ) : (
                   <NumberInput
@@ -216,6 +230,7 @@ export function ItemDrawer({
                     value={item.budgetUnit}
                     min={0}
                     suffix="USD"
+                    disabled={!itemsWrite}
                     onChange={(value) =>
                       patch((m) => {
                         m.items[itemIndex].budgetUnit = value;
@@ -226,6 +241,7 @@ export function ItemDrawer({
                 )}
               </div>
             </div>
+            {itemsWrite ? (
             <QuoteAssign
               item={item}
               quotes={model.quotes ?? []}
@@ -235,6 +251,7 @@ export function ItemDrawer({
                 })
               }
             />
+            ) : null}
             <div className="flex items-center justify-between rounded-xl bg-stone-50 px-3 py-2">
               <Label htmlFor="item-enabled" className="font-normal">
                 Include in plan
@@ -242,6 +259,7 @@ export function ItemDrawer({
               <Switch
                 id="item-enabled"
                 checked={item.enabled}
+                disabled={!itemsWrite}
                 onCheckedChange={(checked) =>
                   patch((m) => {
                     m.items[itemIndex].enabled = Boolean(checked);
@@ -257,6 +275,7 @@ export function ItemDrawer({
               <Button
                 size="sm"
                 variant={followsHospital ? "default" : "outline"}
+                disabled={!formulasWrite}
                 onClick={() => {
                   const next = parseContributions(item.contributions);
                   next.kind = "hospital";
@@ -269,6 +288,7 @@ export function ItemDrawer({
               <Button
                 size="sm"
                 variant={!followsHospital ? "default" : "outline"}
+                disabled={!formulasWrite}
                 onClick={() =>
                   setContributions(setFixedQty(rule.constant || 1))
                 }
@@ -300,10 +320,11 @@ export function ItemDrawer({
                         <CellEditor
                           source={source}
                           cell={rule.cells[source.id] ?? null}
-                          open={openKey === source.id}
-                          onOpenChange={(nextOpen) =>
-                            setOpenKey(nextOpen ? source.id : null)
-                          }
+                          open={formulasWrite && openKey === source.id}
+                          onOpenChange={(nextOpen) => {
+                            if (!formulasWrite) return;
+                            setOpenKey(nextOpen ? source.id : null);
+                          }}
                           onChange={(cell) =>
                             setContributions(
                               setContributionCell(
@@ -328,14 +349,17 @@ export function ItemDrawer({
                 className="mt-1 max-w-32"
                 value={rule.constant}
                 min={0}
+                disabled={!formulasWrite}
                 onChange={(value) => setContributions(setFixedQty(value))}
               />
             </div>
           )}
 
-          <Button variant="destructive" onClick={onDelete}>
-            Delete item
-          </Button>
+          {canDelete ? (
+            <Button variant="destructive" onClick={onDelete}>
+              Delete item
+            </Button>
+          ) : null}
         </SheetBody>
       </SheetContent>
     </Sheet>

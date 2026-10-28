@@ -12,6 +12,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  canRead,
+  canWrite,
+  type GuestPermissions,
+} from "@/lib/access";
 import { bedsFromArea, scaleHospitalBeds } from "@/lib/engine";
 import { BASE_CURRENCY } from "@/lib/currency";
 import { categoryLabel, formatInt, modelCategories } from "@/lib/format";
@@ -21,38 +26,37 @@ type Props = {
   model: PlanningModel;
   result: Evaluation;
   onChange: (next: PlanningModel) => void;
-  readOnly?: boolean;
-  onScaleBeds?: (beds: number) => void;
+  onLocalChange?: (next: PlanningModel) => void;
+  permissions: GuestPermissions;
 };
 
 export function CapexTab({
   model,
   result,
   onChange,
-  readOnly,
-  onScaleBeds,
+  onLocalChange,
+  permissions,
 }: Props) {
   const money = useMoney();
-  const canScale = Boolean(onScaleBeds) || !readOnly;
-  const patch = (fn: (m: PlanningModel) => void) => {
-    if (readOnly) return;
+  const sizeWrite = canWrite(permissions, "hospitalSize");
+  const sizeRead = canRead(permissions, "hospitalSize");
+  const bandsWrite = canWrite(permissions, "capexBands");
+  const bandsRead = canRead(permissions, "capexBands");
+  const ratesWrite = canWrite(permissions, "capexRates");
+  const ratesRead = canRead(permissions, "capexRates");
+  const catalogWrite = canWrite(permissions, "capexCatalog");
+  const catalogRead = canRead(permissions, "capexCatalog");
+
+  const patch = (fn: (m: PlanningModel) => void, persist = true) => {
     const next = structuredClone(model);
     fn(next);
-    onChange(next);
+    if (persist) onChange(next);
+    else onLocalChange?.(next);
   };
   const excluded = new Set(model.capex.excludedCategories ?? []);
   const categories = modelCategories(model);
   const construction = result.capex.lines.filter((line) => line.kind === "construction");
   const catalog = result.capex.lines.filter((line) => line.kind === "catalog");
-
-  const setCategoryInCapex = (id: string, on: boolean) => {
-    patch((m) => {
-      const next = new Set(m.capex.excludedCategories ?? []);
-      if (on) next.delete(id);
-      else next.add(id);
-      m.capex.excludedCategories = [...next];
-    });
-  };
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_1fr]">
@@ -61,6 +65,7 @@ export function CapexTab({
           <h2 className="text-xl font-medium tracking-tight">Area & rates</h2>
         </div>
 
+        {bandsRead ? (
         <div className="overflow-hidden rounded-xl ring-1 ring-foreground/10">
           <Table>
             <TableHeader>
@@ -76,7 +81,7 @@ export function CapexTab({
                     <NumberInput
                       value={band.beds}
                       min={1}
-                      disabled={readOnly}
+                      disabled={!bandsWrite}
                       onChange={(v) =>
                         patch((m) => {
                           m.capex.areaBands[index].beds = v;
@@ -88,7 +93,7 @@ export function CapexTab({
                     <NumberInput
                       value={band.sqftPerBed}
                       min={1}
-                      disabled={readOnly}
+                      disabled={!bandsWrite}
                       onChange={(v) =>
                         patch((m) => {
                           m.capex.areaBands[index].sqftPerBed = v;
@@ -101,7 +106,9 @@ export function CapexTab({
             </TableBody>
           </Table>
         </div>
+        ) : null}
 
+        {ratesRead ? (
         <div className="overflow-hidden rounded-xl ring-1 ring-foreground/10">
           <Table>
             <TableHeader>
@@ -119,7 +126,7 @@ export function CapexTab({
                       value={line.ratePerSqft}
                       min={0}
                       suffix={BASE_CURRENCY}
-                      disabled={readOnly}
+                      disabled={!ratesWrite}
                       onChange={(v) =>
                         patch((m) => {
                           m.capex.lines[index].ratePerSqft = v;
@@ -132,7 +139,9 @@ export function CapexTab({
             </TableBody>
           </Table>
         </div>
+        ) : null}
 
+        {catalogRead ? (
         <div className="overflow-hidden rounded-xl ring-1 ring-foreground/10">
           <Table>
             <TableHeader>
@@ -148,9 +157,16 @@ export function CapexTab({
                   <TableCell className="text-right">
                     <Switch
                       checked={!excluded.has(id)}
-                      disabled={readOnly}
                       onCheckedChange={(checked) =>
-                        setCategoryInCapex(id, Boolean(checked))
+                        patch(
+                          (m) => {
+                            const next = new Set(m.capex.excludedCategories ?? []);
+                            if (checked) next.delete(id);
+                            else next.add(id);
+                            m.capex.excludedCategories = [...next];
+                          },
+                          catalogWrite,
+                        )
                       }
                     />
                   </TableCell>
@@ -159,10 +175,12 @@ export function CapexTab({
             </TableBody>
           </Table>
         </div>
+        ) : null}
       </section>
 
       <section>
         <h2 className="text-xl font-medium tracking-tight">Live CAPEX</h2>
+        {sizeRead ? (
         <div className="mt-3 flex flex-wrap items-end gap-3">
           <div>
             <Label className="text-xs">Area</Label>
@@ -171,13 +189,9 @@ export function CapexTab({
               value={Math.round(result.areaSqft)}
               min={1}
               suffix="sq.ft"
-              disabled={!canScale}
+              disabled={!sizeWrite}
               onChange={(area) => {
                 const beds = bedsFromArea(area, model.capex.areaBands);
-                if (onScaleBeds) {
-                  onScaleBeds(beds);
-                  return;
-                }
                 patch((m) => {
                   scaleHospitalBeds(m, beds);
                 });
@@ -192,12 +206,8 @@ export function CapexTab({
               min={10}
               max={2000}
               suffix="beds"
-              disabled={!canScale}
+              disabled={!sizeWrite}
               onChange={(total) => {
-                if (onScaleBeds) {
-                  onScaleBeds(total);
-                  return;
-                }
                 patch((m) => {
                   scaleHospitalBeds(m, total);
                 });
@@ -210,6 +220,7 @@ export function CapexTab({
             {money.currency}
           </p>
         </div>
+        ) : null}
         <div className="mt-4 overflow-hidden rounded-xl ring-1 ring-foreground/10">
           <Table>
             <TableHeader>

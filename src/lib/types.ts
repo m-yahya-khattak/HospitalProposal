@@ -65,6 +65,8 @@ export type QuoteProduct = {
   fxAsOf?: string;
   source: "upload" | "manual";
   externalId?: string;
+  /** Set by get_guest_project when quote prices are hidden. */
+  priceHidden?: boolean;
 };
 
 export type TheatreRules = {

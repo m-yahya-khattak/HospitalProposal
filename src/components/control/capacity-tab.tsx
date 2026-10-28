@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { canRead, canWrite, type GuestPermissions } from "@/lib/access";
 import { bedsFromArea, scaleHospitalBeds } from "@/lib/engine";
 import { slugify } from "@/lib/id";
 import { formatInt, formatPercent } from "@/lib/format";
@@ -18,8 +19,11 @@ type Props = {
   model: PlanningModel;
   result: Evaluation;
   onChange: (next: PlanningModel) => void;
-  readOnly?: boolean;
-  onScaleBeds?: (beds: number) => void;
+  /** Local preview only — never persisted. */
+  onLocalChange?: (next: PlanningModel) => void;
+  permissions: GuestPermissions;
+  /** Owners only — visitors never get delete. */
+  canDelete?: boolean;
 };
 
 function departmentBeds(model: PlanningModel, result: Evaluation) {
@@ -42,15 +46,24 @@ export function CapacityTab({
   model,
   result,
   onChange,
-  readOnly,
-  onScaleBeds,
+  onLocalChange,
+  permissions,
+  canDelete,
 }: Props) {
-  const canScale = Boolean(onScaleBeds) || !readOnly;
-  const patch = (fn: (m: PlanningModel) => void) => {
-    if (readOnly) return;
+  const sizeWrite = canWrite(permissions, "hospitalSize");
+  const sizeVisible = canRead(permissions, "hospitalSize");
+  const deptWrite = canWrite(permissions, "departments");
+  const deptRead = canRead(permissions, "departments");
+  const specWrite = canWrite(permissions, "specialties");
+  const specRead = canRead(permissions, "specialties");
+  const theatreWrite = canWrite(permissions, "theatre");
+  const theatreRead = canRead(permissions, "theatre");
+
+  const patch = (fn: (m: PlanningModel) => void, persist = true) => {
     const next = structuredClone(model);
     fn(next);
-    onChange(next);
+    if (persist) onChange(next);
+    else onLocalChange?.(next);
   };
 
   const counts = departmentBeds(model, result);
@@ -62,21 +75,15 @@ export function CapacityTab({
   const [openSpecId, setOpenSpecId] = useState<string | null>(null);
 
   const setTotalBeds = (total: number) => {
-    if (onScaleBeds) {
-      onScaleBeds(total);
-      return;
-    }
+    if (!sizeWrite) return;
     patch((m) => {
       scaleHospitalBeds(m, total);
     });
   };
 
   const setArea = (area: number) => {
+    if (!sizeWrite) return;
     const beds = bedsFromArea(area, model.capex.areaBands);
-    if (onScaleBeds) {
-      onScaleBeds(beds);
-      return;
-    }
     patch((m) => {
       scaleHospitalBeds(m, beds);
     });
@@ -93,11 +100,12 @@ export function CapacityTab({
               rules on the right.
             </p>
           </div>
+          {sizeVisible ? (
           <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               size="icon"
-              disabled={!canScale}
+              disabled={!sizeWrite}
               onClick={() => setTotalBeds(model.totalBeds - 10)}
             >
               <Minus />
@@ -108,13 +116,13 @@ export function CapacityTab({
               min={10}
               max={2000}
               suffix="beds"
-              disabled={!canScale}
+              disabled={!sizeWrite}
               onChange={setTotalBeds}
             />
             <Button
               variant="outline"
               size="icon"
-              disabled={!canScale}
+              disabled={!sizeWrite}
               onClick={() => setTotalBeds(model.totalBeds + 10)}
             >
               <Plus />
@@ -124,10 +132,11 @@ export function CapacityTab({
               value={Math.round(result.areaSqft)}
               min={1}
               suffix="sq.ft"
-              disabled={!canScale}
+              disabled={!sizeWrite}
               onChange={setArea}
             />
           </div>
+          ) : null}
         </div>
 
         <div className="mt-4 flex items-center justify-between text-sm">
@@ -155,7 +164,7 @@ export function CapacityTab({
                   type="button"
                   className="min-w-0 text-left"
                   onClick={() => {
-                    if (!readOnly) setOpenDeptId(dept.id);
+                    if (deptWrite) setOpenDeptId(dept.id);
                   }}
                 >
                   <p className="text-sm font-medium hover:text-teal-800">
@@ -165,23 +174,24 @@ export function CapacityTab({
                     {formatPercent(share)} of total
                   </p>
                 </button>
-                {readOnly ? (
-                  <p className="text-[11px] text-muted-foreground">
-                    {dept.furniture ? "Furn." : ""}
-                  </p>
-                ) : (
+                {deptRead ? (
                   <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                     <Switch
                       size="sm"
                       checked={dept.furniture}
                       onCheckedChange={(checked) =>
-                        patch((m) => {
-                          m.departments[index].furniture = Boolean(checked);
-                        })
+                        patch(
+                          (m) => {
+                            m.departments[index].furniture = Boolean(checked);
+                          },
+                          deptWrite,
+                        )
                       }
                     />
                     Furn.
                   </label>
+                ) : (
+                  <span />
                 )}
                 <NumberInput
                   value={beds}
@@ -189,7 +199,7 @@ export function CapacityTab({
                   max={2000}
                   suffix="beds"
                   className="w-[7.5rem]"
-                  disabled={readOnly}
+                  disabled={!deptWrite && !sizeWrite}
                   onChange={(value) =>
                     patch((m) => {
                       const next = departmentBeds(m, result);
@@ -198,9 +208,7 @@ export function CapacityTab({
                     })
                   }
                 />
-                {readOnly ? (
-                  <span />
-                ) : (
+                {canDelete && deptWrite ? (
                   <Button
                     variant="ghost"
                     size="icon-xs"
@@ -212,12 +220,14 @@ export function CapacityTab({
                   >
                     <Trash2 />
                   </Button>
+                ) : (
+                  <span />
                 )}
               </li>
             );
           })}
         </ul>
-        {readOnly ? null : (
+        {deptWrite ? (
         <form
           className="mt-3 flex max-w-md gap-2"
           onSubmit={(event) => {
@@ -245,10 +255,11 @@ export function CapacityTab({
             Add
           </Button>
         </form>
-        )}
+        ) : null}
       </section>
 
       <aside className="space-y-6">
+        {theatreRead ? (
         <section className="rounded-xl bg-white p-4 ring-1 ring-stone-200">
           <h3 className="text-sm font-medium">Theatre rules</h3>
           <div className="mt-4 grid grid-cols-2 gap-3">
@@ -258,7 +269,7 @@ export function CapacityTab({
                 className="mt-1"
                 value={model.theatre.otPerBeds}
                 min={1}
-                disabled={readOnly}
+                disabled={!theatreWrite}
                 onChange={(v) =>
                   patch((m) => {
                     m.theatre.otPerBeds = v;
@@ -272,7 +283,7 @@ export function CapacityTab({
                 className="mt-1"
                 value={model.theatre.minorPerOt}
                 min={1}
-                disabled={readOnly}
+                disabled={!theatreWrite}
                 onChange={(v) =>
                   patch((m) => {
                     m.theatre.minorPerOt = v;
@@ -286,7 +297,7 @@ export function CapacityTab({
                 className="mt-1"
                 value={model.theatre.ldPerBeds}
                 min={1}
-                disabled={readOnly}
+                disabled={!theatreWrite}
                 onChange={(v) =>
                   patch((m) => {
                     m.theatre.ldPerBeds = v;
@@ -300,7 +311,7 @@ export function CapacityTab({
                 className="mt-1"
                 value={model.theatre.cathLabCount}
                 min={0}
-                disabled={readOnly}
+                disabled={!theatreWrite}
                 onChange={(v) =>
                   patch((m) => {
                     m.theatre.cathLabCount = v;
@@ -315,7 +326,9 @@ export function CapacityTab({
             {formatInt(result.theatres.labourDelivery)} L&amp;D
           </p>
         </section>
+        ) : null}
 
+        {specRead ? (
         <section className="rounded-xl bg-white p-4 ring-1 ring-stone-200">
           <h3 className="text-sm font-medium">Specialties</h3>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -331,21 +344,23 @@ export function CapacityTab({
                   type="button"
                   className="min-w-0 flex-1 text-left text-sm hover:text-teal-800"
                   onClick={() => {
-                    if (!readOnly) setOpenSpecId(spec.id);
+                    if (specWrite) setOpenSpecId(spec.id);
                   }}
                 >
                   {spec.name}
                 </button>
                 <Switch
                   checked={spec.enabled}
-                  disabled={readOnly}
                   onCheckedChange={(checked) =>
-                    patch((m) => {
-                      m.specialties[index].enabled = Boolean(checked);
-                    })
+                    patch(
+                      (m) => {
+                        m.specialties[index].enabled = Boolean(checked);
+                      },
+                      specWrite,
+                    )
                   }
                 />
-                {readOnly ? null : (
+                {canDelete && specWrite ? (
                   <Button
                     variant="ghost"
                     size="icon-xs"
@@ -357,11 +372,11 @@ export function CapacityTab({
                   >
                     <Trash2 />
                   </Button>
-                )}
+                ) : null}
               </li>
             ))}
           </ul>
-          {readOnly ? null : (
+          {specWrite ? (
           <form
             className="mt-3 flex gap-2"
             onSubmit={(event) => {
@@ -391,8 +406,9 @@ export function CapacityTab({
               Add
             </Button>
           </form>
-          )}
+          ) : null}
         </section>
+        ) : null}
       </aside>
 
       {openDeptId ? (

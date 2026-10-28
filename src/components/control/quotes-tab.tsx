@@ -23,9 +23,16 @@ import {
 } from "@/components/ui/sheet";
 import { useMoney } from "@/components/currency-provider";
 import { useExchangeRates } from "@/hooks/use-exchange-rates";
+import {
+  blurredPriceSeed,
+  canRead,
+  canWrite,
+  type GuestPermissions,
+} from "@/lib/access";
 import { COMMON_CURRENCIES } from "@/lib/currency";
 import {
   formatQuoteOriginal,
+  formatQuoteUsd,
   mergeQuotes,
   parseQuoteWorkbook,
   pricedQuote,
@@ -40,10 +47,13 @@ const PAGE = 40;
 type Props = {
   model: PlanningModel;
   onChange: (next: PlanningModel) => void;
-  readOnly?: boolean;
+  permissions: GuestPermissions;
 };
 
-export function QuotesTab({ model, onChange, readOnly }: Props) {
+export function QuotesTab({ model, onChange, permissions }: Props) {
+  const quotesWrite = canWrite(permissions, "quotes");
+  const quotesRead = canRead(permissions, "quotes");
+  const pricesVisible = canRead(permissions, "quotePrices");
   const money = useMoney();
   const live = useExchangeRates();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -94,6 +104,36 @@ export function QuotesTab({ model, onChange, readOnly }: Props) {
     }
   };
 
+  if (!quotesRead) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Quote library is hidden for this visitor.
+      </p>
+    );
+  }
+
+  const displayQuoted = (quote: QuoteProduct) => {
+    if (pricesVisible && !quote.priceHidden) return formatQuoteOriginal(quote);
+    return (
+      <span className="select-none blur-sm" aria-hidden>
+        {formatQuoteOriginal({
+          ...quote,
+          originalPrice: blurredPriceSeed(quote.id),
+          currency: quote.currency || "CNY",
+        })}
+      </span>
+    );
+  };
+
+  const displayUsd = (quote: QuoteProduct) => {
+    if (pricesVisible && !quote.priceHidden) return money.format(quote.usdUnit);
+    return (
+      <span className="select-none blur-sm" aria-hidden>
+        {formatQuoteUsd(blurredPriceSeed(`${quote.id}-usd`))}
+      </span>
+    );
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -101,9 +141,10 @@ export function QuotesTab({ model, onChange, readOnly }: Props) {
           <h2 className="text-xl font-medium tracking-tight">Quotes</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {quotes.length} products
+            {!pricesVisible ? " · prices hidden" : ""}
           </p>
         </div>
-        {readOnly ? null : (
+        {quotesWrite ? (
         <div className="flex flex-wrap gap-2">
           <input
             ref={fileRef}
@@ -129,7 +170,7 @@ export function QuotesTab({ model, onChange, readOnly }: Props) {
             Add quote
           </Button>
         </div>
-        )}
+        ) : null}
       </div>
 
       <div className="relative max-w-md">
@@ -159,9 +200,9 @@ export function QuotesTab({ model, onChange, readOnly }: Props) {
         </div>
         {slice.length === 0 ? (
           <p className="px-4 py-8 text-sm text-muted-foreground">
-            {readOnly
-              ? "No quotes."
-              : "No quotes yet. Upload the supplier workbook or add one."}
+            {quotesWrite
+              ? "No quotes yet. Upload the supplier workbook or add one."
+              : "No quotes."}
           </p>
         ) : (
           <ul className="divide-y">
@@ -171,7 +212,7 @@ export function QuotesTab({ model, onChange, readOnly }: Props) {
                   type="button"
                   className="grid w-full items-center gap-1 px-4 py-3 text-left hover:bg-stone-50 md:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,0.7fr)_80px] md:gap-3"
                   onClick={() => {
-                    if (!readOnly) setEditId(quote.id);
+                    if (quotesWrite) setEditId(quote.id);
                   }}
                 >
                   <span className="min-w-0">
@@ -186,10 +227,10 @@ export function QuotesTab({ model, onChange, readOnly }: Props) {
                     {quote.supplier || "—"}
                   </span>
                   <span className="font-mono text-sm tabular-nums md:text-right">
-                    {formatQuoteOriginal(quote)}
+                    {displayQuoted(quote)}
                   </span>
                   <span className="font-mono text-sm tabular-nums text-teal-800 md:text-right">
-                    {money.format(quote.usdUnit)}
+                    {displayUsd(quote)}
                   </span>
                   <span className="text-[11px] text-muted-foreground md:text-right">
                     {quote.source === "manual" ? "Manual" : "Upload"}

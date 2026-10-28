@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CapacityTab } from "@/components/control/capacity-tab";
 import { CapexTab } from "@/components/control/capex-tab";
@@ -14,8 +14,11 @@ import { CurrencySwitcher } from "@/components/currency-switcher";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePlanningModel } from "@/hooks/use-planning-model";
-import { formatAccessUntil } from "@/lib/access";
-import { evaluate, scaleHospitalBeds } from "@/lib/engine";
+import {
+  canRead,
+  formatAccessUntil,
+  ownerPermissions,
+} from "@/lib/access";
 import { createClient } from "@/lib/supabase/client";
 import { ChevronDown, ExternalLink, FolderOpen, LogOut, RotateCcw, UserPlus } from "lucide-react";
 
@@ -32,6 +35,7 @@ export function Studio({
     model,
     result,
     setModel,
+    setLocalModel,
     reset,
     live,
     userEmail,
@@ -46,33 +50,11 @@ export function Studio({
   const [itemFilter, setItemFilter] = useState("all");
   const [panelOpen, setPanelOpen] = useState(initialPanelOpen || !slug);
   const [guestsOpen, setGuestsOpen] = useState(false);
-  const [previewBeds, setPreviewBeds] = useState<number | null>(null);
   const router = useRouter();
   const visitor = access.kind === "visitor";
   const owner = access.kind === "owner";
-  const canScaleBeds =
-    access.kind === "owner" ||
-    (access.kind === "visitor" && access.canScaleBeds);
-
-  useEffect(() => {
-    setPreviewBeds(null);
-  }, [slug]);
-
-  const viewModel = useMemo(() => {
-    if (!visitor || previewBeds == null || previewBeds === model.totalBeds) {
-      return model;
-    }
-    const next = structuredClone(model);
-    scaleHospitalBeds(next, previewBeds);
-    return next;
-  }, [visitor, previewBeds, model]);
-
-  const viewResult = useMemo(
-    () => (viewModel === model ? result : evaluate(viewModel)),
-    [viewModel, model, result],
-  );
-
-  const onScaleBeds = visitor && canScaleBeds ? setPreviewBeds : undefined;
+  const permissions =
+    access.kind === "none" ? ownerPermissions() : access.permissions;
 
   const openDisplay = () => {
     if (!slug) return;
@@ -165,15 +147,15 @@ export function Studio({
             </Button>
           </div>
         </div>
-        {persistError && hasProject && owner ? (
+        {persistError && hasProject ? (
           <p className="border-t bg-red-50 px-4 py-2 text-sm text-destructive lg:px-6">
-            Could not save to Supabase: {persistError}
+            Could not save: {persistError}
           </p>
         ) : null}
         {hasProject && !missing ? (
           <KpiStrip
-            result={viewResult}
-            labels={viewModel.categoryLabels}
+            result={result}
+            labels={model.categoryLabels}
             onSelectTheatres={() => setTab("capacity")}
             onSelectCategory={(id) => {
               setItemFilter(id);
@@ -213,42 +195,49 @@ export function Studio({
               <TabsList variant="line" className="w-full justify-start">
                 <TabsTrigger value="capacity">Capacity</TabsTrigger>
                 <TabsTrigger value="items">Items</TabsTrigger>
-                <TabsTrigger value="quotes">Quotes</TabsTrigger>
+                {canRead(permissions, "quotes") ? (
+                  <TabsTrigger value="quotes">Quotes</TabsTrigger>
+                ) : null}
                 <TabsTrigger value="capex">CAPEX</TabsTrigger>
               </TabsList>
               <TabsContent value="capacity" className="pt-6">
                 <CapacityTab
-                  model={viewModel}
-                  result={viewResult}
+                  model={model}
+                  result={result}
                   onChange={setModel}
-                  readOnly={visitor}
-                  onScaleBeds={onScaleBeds}
+                  onLocalChange={setLocalModel}
+                  permissions={permissions}
+                  canDelete={owner}
                 />
               </TabsContent>
               <TabsContent value="items" className="pt-6">
                 <ItemsTab
-                  model={viewModel}
-                  result={viewResult}
+                  model={model}
+                  result={result}
                   onChange={setModel}
+                  onLocalChange={setLocalModel}
                   filter={itemFilter}
                   onFilterChange={setItemFilter}
-                  readOnly={visitor}
+                  permissions={permissions}
+                  canDelete={owner}
                 />
               </TabsContent>
-              <TabsContent value="quotes" className="pt-6">
-                <QuotesTab
-                  model={viewModel}
-                  onChange={setModel}
-                  readOnly={visitor}
-                />
-              </TabsContent>
+              {canRead(permissions, "quotes") ? (
+                <TabsContent value="quotes" className="pt-6">
+                  <QuotesTab
+                    model={model}
+                    onChange={setModel}
+                    permissions={permissions}
+                  />
+                </TabsContent>
+              ) : null}
               <TabsContent value="capex" className="pt-6">
                 <CapexTab
-                  model={viewModel}
-                  result={viewResult}
+                  model={model}
+                  result={result}
                   onChange={setModel}
-                  readOnly={visitor}
-                  onScaleBeds={onScaleBeds}
+                  onLocalChange={setLocalModel}
+                  permissions={permissions}
                 />
               </TabsContent>
             </Tabs>
@@ -275,7 +264,7 @@ export function Studio({
 
   return (
     <CurrencyProvider
-      fx={viewModel.fx}
+      fx={model.fx}
       onFxChange={
         hasProject && !missing && owner
           ? (fx) => setModel((current) => ({ ...current, fx }))

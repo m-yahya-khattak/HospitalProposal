@@ -29,32 +29,31 @@ create policy project_guests_select
 on public.project_guests
 for select
 to authenticated
-using (
-  user_id = auth.uid()
-  or created_by = auth.uid()
-  or exists (
+using (user_id = auth.uid() or created_by = auth.uid());
+
+create or replace function public.is_project_guest(p_project_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
     select 1
-    from public.planning_projects p
-    where p.id = project_id
-      and p.owner_id = auth.uid()
-  )
-);
+    from public.project_guests g
+    where g.project_id = p_project_id
+      and g.user_id = auth.uid()
+      and g.revoked_at is null
+      and g.expires_at > now()
+  );
+$$;
 
 drop policy if exists planning_projects_select_guest on public.planning_projects;
 create policy planning_projects_select_guest
 on public.planning_projects
 for select
 to authenticated
-using (
-  exists (
-    select 1
-    from public.project_guests g
-    where g.project_id = planning_projects.id
-      and g.user_id = auth.uid()
-      and g.revoked_at is null
-      and g.expires_at > now()
-  )
-);
+using (public.is_project_guest(id));
 
 create or replace function public._insert_auth_user(
   p_id uuid,
@@ -285,6 +284,7 @@ revoke all on function public.create_project_guest(uuid, text, integer, boolean)
 revoke all on function public.revoke_project_guest(uuid)
   from public, anon;
 
+grant execute on function public.is_project_guest(uuid) to authenticated;
 grant execute on function public.create_project_guest(uuid, text, integer, boolean)
   to authenticated;
 grant execute on function public.revoke_project_guest(uuid)

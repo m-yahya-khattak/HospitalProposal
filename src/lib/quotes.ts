@@ -256,14 +256,18 @@ export function quoteLabel(quote: QuoteProduct) {
 }
 
 export function formatQuoteOriginal(quote: QuoteProduct) {
+  const amount =
+    typeof quote.originalPrice === "number" && Number.isFinite(quote.originalPrice)
+      ? quote.originalPrice
+      : 0;
   try {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: quote.currency,
-      maximumFractionDigits: quote.originalPrice >= 100 ? 0 : 2,
-    }).format(quote.originalPrice);
+      currency: quote.currency || "CNY",
+      maximumFractionDigits: amount >= 100 ? 0 : 2,
+    }).format(amount);
   } catch {
-    return `${quote.currency} ${quote.originalPrice}`;
+    return `${quote.currency || "CNY"} ${amount}`;
   }
 }
 
