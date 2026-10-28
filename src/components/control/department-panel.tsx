@@ -55,7 +55,7 @@ export function DepartmentPanel({
             <h2 className="font-heading text-2xl tracking-tight">{dept.name}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               {formatInt(beds)} beds in the current plan
-              {dept.furniture ? " · furniture set on" : ""}
+              {dept.enabled === false ? " · department off" : ""}
             </p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}>

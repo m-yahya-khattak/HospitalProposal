@@ -18,8 +18,8 @@ export function sourceOptions(model: PlanningModel): SourceOption[] {
     },
     {
       id: "furnitureBeds",
-      label: "Furnished beds",
-      short: "Furn.",
+      label: "Beds in on departments",
+      short: "Active",
       group: "Hospital",
     },
     { id: "ot", label: "Operation theatres", short: "OT", group: "Theatres" },
@@ -62,7 +62,7 @@ export function formulaPreview(
 ): string {
   const hidden: Record<string, string> = {
     totalBeds: "total beds",
-    furnitureBeds: "furnished beds",
+    furnitureBeds: "beds in on departments",
   };
   const name = (id: string) =>
     sources.find((s) => s.id === id)?.label ?? hidden[id] ?? id;

@@ -72,6 +72,13 @@ export function normalizePlanningModel(model: PlanningModel): PlanningModel {
   next.capex.excludedCategories = (next.capex.excludedCategories ?? []).filter(
     (id) => known.has(id),
   );
+  next.departments = next.departments.map((dept) => {
+    const raw = dept as typeof dept & { furniture?: boolean };
+    const enabled =
+      typeof raw.enabled === "boolean" ? raw.enabled : true;
+    delete raw.furniture;
+    return { ...raw, enabled };
+  });
   normalizeQuotes(next);
   return next;
 }

@@ -26,7 +26,8 @@ export type Department = {
   name: string;
   sharePercent: number;
   beds?: number;
-  furniture: boolean;
+  /** When false, beds stay in the plan but contribute 0 to kit / pricing. */
+  enabled: boolean;
   kpiCritical?: boolean;
   specialtyId?: string;
 };
@@ -141,7 +142,7 @@ export type DeptResult = {
   name: string;
   sharePercent: number;
   beds: number;
-  furniture: boolean;
+  enabled: boolean;
   kpiCritical: boolean;
 };
 

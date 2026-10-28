@@ -96,7 +96,8 @@ export function CapacityTab({
           <div>
             <h2 className="text-xl font-medium tracking-tight">Beds</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Department beds add up to the hospital total. Theatres follow the
+              Department beds add up to the hospital total. Switch a department
+              off to drop its kit from items and pricing. Theatres follow the
               rules on the right.
             </p>
           </div>
@@ -175,21 +176,18 @@ export function CapacityTab({
                   </p>
                 </button>
                 {deptRead ? (
-                  <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                    <Switch
-                      size="sm"
-                      checked={dept.furniture}
-                      onCheckedChange={(checked) =>
-                        patch(
-                          (m) => {
-                            m.departments[index].furniture = Boolean(checked);
-                          },
-                          deptWrite,
-                        )
-                      }
-                    />
-                    Furn.
-                  </label>
+                  <Switch
+                    size="sm"
+                    checked={dept.enabled !== false}
+                    onCheckedChange={(checked) =>
+                      patch(
+                        (m) => {
+                          m.departments[index].enabled = Boolean(checked);
+                        },
+                        deptWrite,
+                      )
+                    }
+                  />
                 ) : (
                   <span />
                 )}
@@ -240,7 +238,7 @@ export function CapacityTab({
                 name: trimmed,
                 sharePercent: 0,
                 beds: 0,
-                furniture: true,
+                enabled: true,
               });
             });
             setDeptName("");

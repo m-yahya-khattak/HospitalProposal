@@ -16,82 +16,82 @@
       "id": "nursery",
       "name": "Nursery",
       "sharePercent": 5,
-      "furniture": false
+      "enabled": true
     },
     {
       "id": "nicu",
       "name": "NICU",
       "sharePercent": 3,
-      "furniture": false,
+      "enabled": true,
       "kpiCritical": true
     },
     {
       "id": "prepost-ld",
       "name": "Pre / Post Op Care — L&D",
       "sharePercent": 3,
-      "furniture": true
+      "enabled": true
     },
     {
       "id": "icu",
       "name": "ICU / CCU / PICU",
       "sharePercent": 12,
-      "furniture": true,
+      "enabled": true,
       "kpiCritical": true
     },
     {
       "id": "ward",
       "name": "Ward Beds",
       "sharePercent": 35,
-      "furniture": true
+      "enabled": true
     },
     {
       "id": "daycare",
       "name": "Day Care Beds",
       "sharePercent": 3,
-      "furniture": true
+      "enabled": true
     },
     {
       "id": "private",
       "name": "Private Rooms",
       "sharePercent": 12,
-      "furniture": true
+      "enabled": true
     },
     {
       "id": "executive-rooms",
       "name": "Executive Rooms",
       "sharePercent": 3,
-      "furniture": true
+      "enabled": true
     },
     {
       "id": "isolation",
       "name": "Isolation Rooms",
       "sharePercent": 4,
-      "furniture": true
+      "enabled": true
     },
     {
       "id": "emergency",
       "name": "Emergency",
       "sharePercent": 8,
-      "furniture": true,
+      "enabled": true,
       "kpiCritical": true
     },
     {
       "id": "dialysis",
       "name": "Dialysis",
       "sharePercent": 5,
-      "furniture": true
+      "enabled": true
     },
     {
       "id": "prepost-op",
       "name": "Pre / Post Op Care",
       "sharePercent": 5,
-      "furniture": true
+      "enabled": true
     },
     {
       "id": "executive-suites",
       "name": "Executive Suites",
       "sharePercent": 2,
-      "furniture": true
+      "enabled": true
     }
   ],
   "specialties": [

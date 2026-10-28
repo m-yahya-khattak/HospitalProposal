@@ -38,7 +38,7 @@ function allocateBeds(model: PlanningModel): DeptResult[] {
       name: d.name,
       sharePercent: d.sharePercent,
       beds,
-      furniture: d.furniture,
+      enabled: d.enabled !== false,
       kpiCritical: Boolean(d.kpiCritical),
     };
   });
@@ -215,10 +215,10 @@ export function evaluate(model: PlanningModel): Evaluation {
   const departments = allocateBeds(model);
   const shareTotal = model.departments.reduce((s, d) => s + d.sharePercent, 0);
   const furnitureBeds = departments
-    .filter((d) => d.furniture)
+    .filter((d) => d.enabled)
     .reduce((s, d) => s + d.beds, 0);
   const criticalCareBeds = departments
-    .filter((d) => d.kpiCritical)
+    .filter((d) => d.kpiCritical && d.enabled)
     .reduce((s, d) => s + d.beds, 0);
 
   const specialtyOn = new Map(
@@ -247,7 +247,7 @@ export function evaluate(model: PlanningModel): Evaluation {
     labourDelivery: labourRaw,
   };
   for (const d of departments) {
-    sources[deptSource(d.id)] = d.beds;
+    sources[deptSource(d.id)] = d.enabled ? d.beds : 0;
   }
   for (const s of model.specialties) {
     sources[`specialty:${s.id}`] = s.enabled ? 1 : 0;
@@ -396,7 +396,7 @@ export function excel200Mismatches(result: Evaluation): string[] {
     }
   };
   near("beds", result.totalBeds, 200);
-  near("furnitureBeds", result.furnitureBeds, 184);
+  near("furnitureBeds", result.furnitureBeds, 200);
   near("otRaw", result.theatres.otRaw, 4);
   near("minorOtRaw", result.theatres.minorOtRaw, 4 / 3);
   near("labourRaw", result.theatres.labourDeliveryRaw, 4);
@@ -404,6 +404,6 @@ export function excel200Mismatches(result: Evaluation): string[] {
   const qty = (id: string) => result.items.find((i) => i.id === id)?.qtyRaw ?? NaN;
   near("patient-monitor", qty("patient-monitor"), 85.85833333);
   near("infusion-pump", qty("infusion-pump"), 77.525);
-  near("patient-bed", qty("patient-bed"), 184);
+  near("patient-bed", qty("patient-bed"), 200);
   return errors;
 }
