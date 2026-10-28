@@ -42,6 +42,15 @@ type Created = {
 
 const DAYS = [1, 3, 7, 14] as const;
 
+function guestSetupMessage(message: string) {
+  const missing =
+    /schema cache|project_guests|create_project_guest|revoke_project_guest/i.test(
+      message,
+    );
+  if (!missing) return message;
+  return "Visitor logins need a one-time database setup. In Supabase → SQL Editor, paste and run supabase/migrations/004_project_guests.sql, then try again.";
+}
+
 export function GuestsPanel({
   projectId,
   open,
@@ -69,7 +78,7 @@ export function GuestsPanel({
       .is("revoked_at", null)
       .order("created_at", { ascending: false });
     if (queryError) {
-      setError(queryError.message);
+      setError(guestSetupMessage(queryError.message));
       return;
     }
     setRows((data ?? []) as GuestRow[]);
@@ -97,7 +106,7 @@ export function GuestsPanel({
     });
     setPending(false);
     if (rpcError) {
-      setError(rpcError.message);
+      setError(guestSetupMessage(rpcError.message));
       return;
     }
     const row = Array.isArray(data) ? data[0] : data;
@@ -118,7 +127,7 @@ export function GuestsPanel({
       p_guest_id: id,
     });
     if (rpcError) {
-      setError(rpcError.message);
+      setError(guestSetupMessage(rpcError.message));
       return;
     }
     if (created?.guest_id === id) setCreated(null);

@@ -289,3 +289,5 @@ grant execute on function public.create_project_guest(uuid, text, integer, boole
   to authenticated;
 grant execute on function public.revoke_project_guest(uuid)
   to authenticated;
+
+notify pgrst, 'reload schema';
