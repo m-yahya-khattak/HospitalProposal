@@ -10,6 +10,18 @@ export type SourceOption = {
 
 export function sourceOptions(model: PlanningModel): SourceOption[] {
   const options: SourceOption[] = [
+    {
+      id: "totalBeds",
+      label: "Total beds",
+      short: "Beds",
+      group: "Hospital",
+    },
+    {
+      id: "furnitureBeds",
+      label: "Furnished beds",
+      short: "Furn.",
+      group: "Hospital",
+    },
     { id: "ot", label: "Operation theatres", short: "OT", group: "Theatres" },
     {
       id: "minorOt",

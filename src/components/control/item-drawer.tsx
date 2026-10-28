@@ -280,6 +280,14 @@ export function ItemDrawer({
                   const next = parseContributions(item.contributions);
                   next.kind = "hospital";
                   next.constant = 0;
+                  // Leaving fixed qty with no cells → link to hospital size
+                  // so the mode isn't an empty "No rule · 0".
+                  if (
+                    Object.keys(next.cells).length === 0 &&
+                    next.leftover.length === 0
+                  ) {
+                    next.cells.totalBeds = { mode: "per", n: 1 };
+                  }
                   setContributions(toContributions(next, sourceOrder));
                 }}
               >
