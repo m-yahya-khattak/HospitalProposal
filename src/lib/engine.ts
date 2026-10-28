@@ -160,20 +160,58 @@ function clampBeds(n: number) {
   return Math.max(MIN_BEDS, Math.min(MAX_BEDS, Math.round(n)));
 }
 
+export function deptPlannedBeds(
+  dept: PlanningModel["departments"][number],
+  totalBeds: number,
+) {
+  if (typeof dept.beds === "number") return Math.max(0, Math.round(dept.beds));
+  return Math.max(0, Math.round((totalBeds * dept.sharePercent) / 100));
+}
+
+/** Hospital size = beds in on departments. Off departments keep parked beds. */
+export function syncActiveTotalBeds(model: PlanningModel) {
+  const refTotal = model.totalBeds;
+  for (const dept of model.departments) {
+    dept.beds = deptPlannedBeds(dept, refTotal);
+  }
+  const active = model.departments
+    .filter((dept) => dept.enabled !== false)
+    .reduce((sum, dept) => sum + (dept.beds ?? 0), 0);
+  model.totalBeds = Math.max(1, active);
+  for (const dept of model.departments) {
+    const beds = dept.beds ?? 0;
+    dept.sharePercent =
+      dept.enabled === false || !model.totalBeds
+        ? 0
+        : (beds / model.totalBeds) * 100;
+  }
+}
+
 export function scaleHospitalBeds(model: PlanningModel, total: number) {
   const nextTotal = clampBeds(total);
-  const current = model.departments.map((dept) => {
-    if (typeof dept.beds === "number") return Math.max(0, Math.round(dept.beds));
-    return Math.round((model.totalBeds * dept.sharePercent) / 100);
-  });
-  const prevTotal = current.reduce((sum, n) => sum + n, 0) || model.totalBeds;
-  const scaled = current.map((n) => Math.round((n * nextTotal) / prevTotal));
-  const drift = nextTotal - scaled.reduce((sum, n) => sum + n, 0);
-  if (scaled.length) scaled[scaled.length - 1] += drift;
+  const current = model.departments.map((dept) =>
+    deptPlannedBeds(dept, model.totalBeds),
+  );
+  const enabledIdx = model.departments
+    .map((dept, index) => (dept.enabled !== false ? index : -1))
+    .filter((index) => index >= 0);
+  const enabledSum =
+    enabledIdx.reduce((sum, index) => sum + current[index], 0) || 1;
+  const scaled = [...current];
+  for (const index of enabledIdx) {
+    scaled[index] = Math.round((current[index] * nextTotal) / enabledSum);
+  }
+  if (enabledIdx.length) {
+    const sum = enabledIdx.reduce((acc, index) => acc + scaled[index], 0);
+    scaled[enabledIdx[enabledIdx.length - 1]] += nextTotal - sum;
+  }
   model.totalBeds = nextTotal;
   model.departments.forEach((dept, index) => {
     dept.beds = scaled[index] ?? 0;
-    dept.sharePercent = nextTotal ? (dept.beds / nextTotal) * 100 : 0;
+    dept.sharePercent =
+      dept.enabled === false || !nextTotal
+        ? 0
+        : ((dept.beds ?? 0) / nextTotal) * 100;
   });
 }
 
@@ -214,9 +252,10 @@ function itemQtyRaw(
 export function evaluate(model: PlanningModel): Evaluation {
   const departments = allocateBeds(model);
   const shareTotal = model.departments.reduce((s, d) => s + d.sharePercent, 0);
-  const furnitureBeds = departments
+  const activeBeds = departments
     .filter((d) => d.enabled)
     .reduce((s, d) => s + d.beds, 0);
+  const furnitureBeds = activeBeds;
   const criticalCareBeds = departments
     .filter((d) => d.kpiCritical && d.enabled)
     .reduce((s, d) => s + d.beds, 0);
@@ -228,18 +267,18 @@ export function evaluate(model: PlanningModel): Evaluation {
   const cathOn = Boolean(specialtyOn.get(model.theatre.cathSpecialtyId));
 
   const otRaw = model.theatre.otPerBeds
-    ? model.totalBeds / model.theatre.otPerBeds
+    ? activeBeds / model.theatre.otPerBeds
     : 0;
   const minorOtRaw = model.theatre.minorPerOt
     ? otRaw / model.theatre.minorPerOt
     : 0;
   const labourRaw = labourOn && model.theatre.ldPerBeds
-    ? model.totalBeds / model.theatre.ldPerBeds
+    ? activeBeds / model.theatre.ldPerBeds
     : 0;
   const cathLab = cathOn ? model.theatre.cathLabCount : 0;
 
   const sources: Record<string, number> = {
-    totalBeds: model.totalBeds,
+    totalBeds: activeBeds,
     furnitureBeds,
     ot: otRaw,
     minorOt: minorOtRaw,
@@ -318,8 +357,8 @@ export function evaluate(model: PlanningModel): Evaluation {
   const bomPremium = enabledItems.reduce((s, i) => s + i.premiumCost, 0);
   const bomBudget = enabledItems.reduce((s, i) => s + i.budgetCost, 0);
 
-  const sqftPerBed = interpolateSqft(model.totalBeds, model.capex.areaBands);
-  const areaSqft = model.totalBeds * sqftPerBed;
+  const sqftPerBed = interpolateSqft(activeBeds, model.capex.areaBands);
+  const areaSqft = activeBeds * sqftPerBed;
 
   const constructionLines: CapexLineResult[] = model.capex.lines
     .filter((line) => line.id !== BOM_CAPEX_LINE_ID)
@@ -351,7 +390,7 @@ export function evaluate(model: PlanningModel): Evaluation {
   const labourDelivery = roundQty(labourRaw);
 
   return {
-    totalBeds: model.totalBeds,
+    totalBeds: activeBeds,
     shareTotal,
     departments,
     furnitureBeds,

@@ -9,7 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { canRead, canWrite, type GuestPermissions } from "@/lib/access";
-import { bedsFromArea, scaleHospitalBeds } from "@/lib/engine";
+import {
+  bedsFromArea,
+  scaleHospitalBeds,
+  syncActiveTotalBeds,
+} from "@/lib/engine";
 import { slugify } from "@/lib/id";
 import { formatInt, formatPercent } from "@/lib/format";
 import type { Evaluation, PlanningModel } from "@/lib/types";
@@ -34,12 +38,10 @@ function departmentBeds(model: PlanningModel, result: Evaluation) {
 }
 
 function applyBedCounts(model: PlanningModel, counts: number[]) {
-  const total = counts.reduce((sum, n) => sum + n, 0);
-  model.totalBeds = Math.max(1, total);
   model.departments.forEach((dept, index) => {
     dept.beds = counts[index] ?? 0;
-    dept.sharePercent = (dept.beds / model.totalBeds) * 100;
   });
+  syncActiveTotalBeds(model);
 }
 
 export function CapacityTab({
@@ -67,8 +69,11 @@ export function CapacityTab({
   };
 
   const counts = departmentBeds(model, result);
-  const allocated = counts.reduce((sum, n) => sum + n, 0);
-  const bedsOk = allocated === model.totalBeds;
+  const allocated = model.departments.reduce((sum, dept, index) => {
+    if (dept.enabled === false) return sum;
+    return sum + (counts[index] ?? 0);
+  }, 0);
+  const bedsOk = allocated === result.totalBeds;
   const [deptName, setDeptName] = useState("");
   const [specName, setSpecName] = useState("");
   const [openDeptId, setOpenDeptId] = useState<string | null>(null);
@@ -147,7 +152,7 @@ export function CapacityTab({
               bedsOk ? "text-teal-800" : "font-medium text-destructive"
             }
           >
-            {formatInt(allocated)} of {formatInt(model.totalBeds)} beds
+            {formatInt(allocated)} of {formatInt(result.totalBeds)} beds
             {bedsOk ? "" : " — should match the total"}
           </p>
         </div>
@@ -155,11 +160,14 @@ export function CapacityTab({
         <ul className="mt-3 divide-y rounded-xl bg-white ring-1 ring-stone-200">
           {model.departments.map((dept, index) => {
             const beds = counts[index] ?? 0;
-            const share = model.totalBeds ? (beds / model.totalBeds) * 100 : 0;
+            const on = dept.enabled !== false;
+            const share = result.totalBeds ? (beds / result.totalBeds) * 100 : 0;
             return (
               <li
                 key={dept.id}
-                className="grid grid-cols-[1fr_auto_120px_auto] items-center gap-3 px-4 py-3"
+                className={`grid grid-cols-[1fr_auto_120px_auto] items-center gap-3 px-4 py-3 ${
+                  on ? "" : "opacity-50"
+                }`}
               >
                 <button
                   type="button"
@@ -172,17 +180,22 @@ export function CapacityTab({
                     {dept.name}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {formatPercent(share)} of total
+                    {on ? `${formatPercent(share)} of total` : "Off — parked"}
                   </p>
                 </button>
                 {deptRead ? (
                   <Switch
                     size="sm"
-                    checked={dept.enabled !== false}
+                    checked={on}
                     onCheckedChange={(checked) =>
                       patch(
                         (m) => {
-                          m.departments[index].enabled = Boolean(checked);
+                          const row = m.departments[index];
+                          if (typeof row.beds !== "number") {
+                            row.beds = beds;
+                          }
+                          row.enabled = Boolean(checked);
+                          syncActiveTotalBeds(m);
                         },
                         deptWrite,
                       )
@@ -212,7 +225,10 @@ export function CapacityTab({
                     size="icon-xs"
                     onClick={() =>
                       patch((m) => {
-                        m.departments = m.departments.filter((_, i) => i !== index);
+                        m.departments = m.departments.filter(
+                          (_, i) => i !== index,
+                        );
+                        syncActiveTotalBeds(m);
                       })
                     }
                   >

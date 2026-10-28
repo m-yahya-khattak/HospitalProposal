@@ -1,4 +1,4 @@
-import { BOM_CAPEX_LINE_ID } from "@/lib/engine";
+import { BOM_CAPEX_LINE_ID, syncActiveTotalBeds } from "@/lib/engine";
 import { modelCategories } from "@/lib/format";
 import { normalizeQuotes } from "@/lib/quotes";
 import type { FxSettings, PlanningModel } from "@/lib/types";
@@ -79,6 +79,7 @@ export function normalizePlanningModel(model: PlanningModel): PlanningModel {
     delete raw.furniture;
     return { ...raw, enabled };
   });
+  syncActiveTotalBeds(next);
   normalizeQuotes(next);
   return next;
 }
