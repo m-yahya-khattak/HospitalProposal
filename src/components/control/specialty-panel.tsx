@@ -22,12 +22,16 @@ export function SpecialtyPanel({
   result,
   onChange,
   onClose,
+  canWrite = true,
+  canDelete = true,
 }: {
   specialtyId: string;
   model: PlanningModel;
   result: Evaluation;
   onChange: (next: PlanningModel) => void;
   onClose: () => void;
+  canWrite?: boolean;
+  canDelete?: boolean;
 }) {
   const spec = model.specialties.find((s) => s.id === specialtyId);
   const lines = specialtyKit(model, result, specialtyId);
@@ -42,6 +46,7 @@ export function SpecialtyPanel({
   const on = Boolean(result.sources[source] || result.sources[specialtySourceIds(specialtyId)[1] ?? ""]);
 
   const patch = (fn: (m: PlanningModel) => void) => {
+    if (!canWrite) return;
     const next = structuredClone(model);
     fn(next);
     onChange(next);
@@ -73,70 +78,74 @@ export function SpecialtyPanel({
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
-          <div className="rounded-xl bg-stone-50 p-3">
-            <p className="text-sm font-medium">Assign item</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Adds “n if {spec.name} is on” to that item.
-            </p>
-            <div className="mt-3 grid grid-cols-[1fr_72px_auto] items-end gap-2">
-              <div>
-                <Label className="text-xs">Item</Label>
-                <Select
-                  value={itemId}
-                  onValueChange={(value) => {
-                    if (value) setItemId(value);
+          {canWrite ? (
+            <div className="rounded-xl bg-stone-50 p-3">
+              <p className="text-sm font-medium">Assign item</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Adds “n if {spec.name} is on” to that item.
+              </p>
+              <div className="mt-3 grid grid-cols-[1fr_72px_auto] items-end gap-2">
+                <div>
+                  <Label className="text-xs">Item</Label>
+                  <Select
+                    value={itemId}
+                    onValueChange={(value) => {
+                      if (value) setItemId(value);
+                    }}
+                  >
+                    <SelectTrigger className="mt-1 w-full">
+                      <SelectValue placeholder="Choose item" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {assignable.map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Qty</Label>
+                  <NumberInput
+                    className="mt-1"
+                    value={qty}
+                    min={1}
+                    onChange={setQty}
+                  />
+                </div>
+                <Button
+                  onClick={() => {
+                    if (!itemId) return;
+                    patch((m) => {
+                      const item = m.items.find((row) => row.id === itemId);
+                      if (!item) return;
+                      item.contributions.push({
+                        type: "oneIfExists",
+                        source,
+                        n: Math.max(1, Math.round(qty)),
+                      });
+                    });
+                    setItemId("");
+                    setQty(1);
                   }}
                 >
-                  <SelectTrigger className="mt-1 w-full">
-                    <SelectValue placeholder="Choose item" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {assignable.map((item) => (
-                      <SelectItem key={item.id} value={item.id}>
-                        {item.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <Plus data-icon="inline-start" />
+                  Add
+                </Button>
               </div>
-              <div>
-                <Label className="text-xs">Qty</Label>
-                <NumberInput
-                  className="mt-1"
-                  value={qty}
-                  min={1}
-                  onChange={setQty}
-                />
-              </div>
-              <Button
-                onClick={() => {
-                  if (!itemId) return;
-                  patch((m) => {
-                    const item = m.items.find((row) => row.id === itemId);
-                    if (!item) return;
-                    item.contributions.push({
-                      type: "oneIfExists",
-                      source,
-                      n: Math.max(1, Math.round(qty)),
-                    });
-                  });
-                  setItemId("");
-                  setQty(1);
-                }}
-              >
-                <Plus data-icon="inline-start" />
-                Add
-              </Button>
             </div>
-          </div>
+          ) : null}
 
           {lines.length === 0 ? (
-            <p className="mt-6 text-sm text-muted-foreground">
-              Nothing assigned yet. Add an item above, or set a rule on the item
-              using “{spec.name} (on/off)”.
+            <p className={`${canWrite ? "mt-6" : ""} text-sm text-muted-foreground`}>
+              Nothing assigned yet
+              {canWrite
+                ? `. Add an item above, or set a rule on the item using “${spec.name} (on/off)”.`
+                : "."}
             </p>
           ) : (
-            <ul className="mt-5 grid gap-3">
+            <ul className={`${canWrite ? "mt-5" : ""} grid gap-3`}>
               {lines.map((line) => (
                 <li
                   key={`${line.item.id}-${line.formulaIndex}`}
@@ -149,21 +158,23 @@ export function SpecialtyPanel({
                         {categoryLabel(line.item.category, model.categoryLabels)}
                       </p>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={() =>
-                        patch((m) => {
-                          const item = m.items[line.itemIndex];
-                          if (!item) return;
-                          item.contributions = item.contributions.filter(
-                            (_, i) => i !== line.formulaIndex,
-                          );
-                        })
-                      }
-                    >
-                      <Trash2 />
-                    </Button>
+                    {canDelete ? (
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() =>
+                          patch((m) => {
+                            const item = m.items[line.itemIndex];
+                            if (!item) return;
+                            item.contributions = item.contributions.filter(
+                              (_, i) => i !== line.formulaIndex,
+                            );
+                          })
+                        }
+                      >
+                        <Trash2 />
+                      </Button>
+                    ) : null}
                   </div>
                   <p className="mt-2 text-sm text-stone-600">{line.formulaLabel}</p>
                   {"n" in line.formula ? (
@@ -173,6 +184,7 @@ export function SpecialtyPanel({
                         className="w-20"
                         value={line.formula.n}
                         min={1}
+                        disabled={!canWrite}
                         onChange={(value) =>
                           patch((m) => {
                             const formula =

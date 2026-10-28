@@ -14,12 +14,16 @@ export function DepartmentPanel({
   result,
   onChange,
   onClose,
+  canWrite = true,
+  canDelete = true,
 }: {
   deptId: string;
   model: PlanningModel;
   result: Evaluation;
   onChange: (next: PlanningModel) => void;
   onClose: () => void;
+  canWrite?: boolean;
+  canDelete?: boolean;
 }) {
   const dept = model.departments.find((d) => d.id === deptId);
   const beds = result.departments.find((d) => d.id === deptId)?.beds ?? 0;
@@ -28,6 +32,7 @@ export function DepartmentPanel({
   if (!dept) return null;
 
   const patch = (fn: (m: PlanningModel) => void) => {
+    if (!canWrite) return;
     const next = structuredClone(model);
     fn(next);
     onChange(next);
@@ -78,21 +83,23 @@ export function DepartmentPanel({
                         {categoryLabel(line.item.category, model.categoryLabels)}
                       </p>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={() =>
-                        patch((m) => {
-                          const item = m.items[line.itemIndex];
-                          if (!item) return;
-                          item.contributions = item.contributions.filter(
-                            (_, i) => i !== line.formulaIndex,
-                          );
-                        })
-                      }
-                    >
-                      <Trash2 />
-                    </Button>
+                    {canDelete ? (
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() =>
+                          patch((m) => {
+                            const item = m.items[line.itemIndex];
+                            if (!item) return;
+                            item.contributions = item.contributions.filter(
+                              (_, i) => i !== line.formulaIndex,
+                            );
+                          })
+                        }
+                      >
+                        <Trash2 />
+                      </Button>
+                    ) : null}
                   </div>
                   <p className="mt-2 text-sm text-stone-600">{line.formulaLabel}</p>
                   {"n" in line.formula ? (
@@ -102,6 +109,7 @@ export function DepartmentPanel({
                         className="w-20"
                         value={line.formula.n}
                         min={1}
+                        disabled={!canWrite}
                         onChange={(value) =>
                           patch((m) => {
                             const formula =

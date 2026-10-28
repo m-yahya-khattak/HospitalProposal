@@ -164,7 +164,7 @@ export function CapacityTab({
                   type="button"
                   className="min-w-0 text-left"
                   onClick={() => {
-                    if (deptWrite) setOpenDeptId(dept.id);
+                    if (deptRead) setOpenDeptId(dept.id);
                   }}
                 >
                   <p className="text-sm font-medium hover:text-teal-800">
@@ -199,7 +199,7 @@ export function CapacityTab({
                   max={2000}
                   suffix="beds"
                   className="w-[7.5rem]"
-                  disabled={!deptWrite && !sizeWrite}
+                  disabled={!deptWrite}
                   onChange={(value) =>
                     patch((m) => {
                       const next = departmentBeds(m, result);
@@ -344,7 +344,7 @@ export function CapacityTab({
                   type="button"
                   className="min-w-0 flex-1 text-left text-sm hover:text-teal-800"
                   onClick={() => {
-                    if (specWrite) setOpenSpecId(spec.id);
+                    if (specRead) setOpenSpecId(spec.id);
                   }}
                 >
                   {spec.name}
@@ -418,6 +418,8 @@ export function CapacityTab({
           result={result}
           onChange={onChange}
           onClose={() => setOpenDeptId(null)}
+          canWrite={deptWrite}
+          canDelete={canDelete && deptWrite}
         />
       ) : null}
       {openSpecId ? (
@@ -427,6 +429,8 @@ export function CapacityTab({
           result={result}
           onChange={onChange}
           onClose={() => setOpenSpecId(null)}
+          canWrite={specWrite}
+          canDelete={canDelete && specWrite}
         />
       ) : null}
     </div>
