@@ -20,6 +20,12 @@ export function quoteCurrency(value: unknown) {
   return mapped.length === 3 ? mapped : "CNY";
 }
 
+/** Money cents — FX division otherwise leaves float tails in inputs. */
+export function roundUsd(n: number) {
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.round(n * 100) / 100;
+}
+
 export function usdFromOriginal(
   originalPrice: number,
   currency: string,
@@ -27,10 +33,12 @@ export function usdFromOriginal(
 ) {
   const code = quoteCurrency(currency);
   if (!Number.isFinite(originalPrice) || originalPrice < 0) return 0;
-  if (code === "USD") return originalPrice;
+  if (code === "USD") return roundUsd(originalPrice);
   const perUsd = rates?.[code];
-  if (typeof perUsd === "number" && perUsd > 0) return originalPrice / perUsd;
-  return originalPrice;
+  if (typeof perUsd === "number" && perUsd > 0) {
+    return roundUsd(originalPrice / perUsd);
+  }
+  return roundUsd(originalPrice);
 }
 
 export function pricedQuote(
@@ -83,8 +91,8 @@ export function applyQuotePrices(item: CatalogItem, quotes: QuoteProduct[]) {
       : undefined;
   item.premiumQuoteId = premium?.id ?? null;
   item.budgetQuoteId = budget?.id ?? null;
-  if (premium) item.premiumUnit = premium.usdUnit;
-  if (budget) item.budgetUnit = budget.usdUnit;
+  if (premium) item.premiumUnit = roundUsd(premium.usdUnit);
+  if (budget) item.budgetUnit = roundUsd(budget.usdUnit);
 }
 
 export function normalizeQuotes(model: PlanningModel): void {
@@ -112,8 +120,8 @@ export function normalizeQuotes(model: PlanningModel): void {
         : 0;
     const usdUnit =
       typeof raw.usdUnit === "number" && Number.isFinite(raw.usdUnit)
-        ? Math.max(0, raw.usdUnit)
-        : originalPrice;
+        ? roundUsd(raw.usdUnit)
+        : roundUsd(originalPrice);
     cleaned.push({
       id,
       name: typeof raw.name === "string" && raw.name.trim() ? raw.name.trim() : "Quote",
