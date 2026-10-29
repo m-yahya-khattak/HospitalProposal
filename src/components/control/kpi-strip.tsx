@@ -129,10 +129,10 @@ export function KpiStrip({
   const area = Math.round(result.areaSqft);
 
   return (
-    <div className="border-t bg-[#f7f6f3]/80 px-4 py-2.5 lg:px-6">
+    <div className="border-b bg-[#f7f6f3]/80 px-4 py-2.5 lg:px-6">
       <div className="flex flex-col gap-2.5 lg:flex-row lg:items-start">
         {sizeVisible ? (
-          <div className="flex w-full gap-2.5 lg:w-auto lg:min-w-[20rem] lg:max-w-md">
+          <div className="flex w-full flex-col gap-2.5 sm:flex-row lg:w-auto lg:min-w-[20rem] lg:max-w-md">
             <SizeTile
               label="Beds"
               value={beds}

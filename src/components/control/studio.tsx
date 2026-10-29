@@ -154,39 +154,40 @@ export function Studio({
             Could not save: {persistError}
           </p>
         ) : null}
-        {hasProject && !missing ? (
-          <KpiStrip
-            result={result}
-            labels={model.categoryLabels}
-            sizeVisible={canRead(permissions, "hospitalSize")}
-            sizeWrite={canWrite(permissions, "hospitalSize")}
-            onChangeBeds={(total) => {
-              if (!canWrite(permissions, "hospitalSize")) return;
-              setModel((prev) => {
-                const next = structuredClone(prev);
-                scaleHospitalBeds(next, total);
-                return next;
-              });
-            }}
-            onChangeArea={(area) => {
-              if (!canWrite(permissions, "hospitalSize")) return;
-              setModel((prev) => {
-                const next = structuredClone(prev);
-                scaleHospitalBeds(
-                  next,
-                  bedsFromArea(area, next.capex.areaBands),
-                );
-                return next;
-              });
-            }}
-            onSelectTheatres={() => setTab("capacity")}
-            onSelectCategory={(id) => {
-              setItemFilter(id);
-              setTab("items");
-            }}
-          />
-        ) : null}
       </header>
+
+      {hasProject && !missing ? (
+        <KpiStrip
+          result={result}
+          labels={model.categoryLabels}
+          sizeVisible={canRead(permissions, "hospitalSize")}
+          sizeWrite={canWrite(permissions, "hospitalSize")}
+          onChangeBeds={(total) => {
+            if (!canWrite(permissions, "hospitalSize")) return;
+            setModel((prev) => {
+              const next = structuredClone(prev);
+              scaleHospitalBeds(next, total);
+              return next;
+            });
+          }}
+          onChangeArea={(area) => {
+            if (!canWrite(permissions, "hospitalSize")) return;
+            setModel((prev) => {
+              const next = structuredClone(prev);
+              scaleHospitalBeds(
+                next,
+                bedsFromArea(area, next.capex.areaBands),
+              );
+              return next;
+            });
+          }}
+          onSelectTheatres={() => setTab("capacity")}
+          onSelectCategory={(id) => {
+            setItemFilter(id);
+            setTab("items");
+          }}
+        />
+      ) : null}
 
       <main className="px-4 py-6 lg:px-6">
         {missing ? (
