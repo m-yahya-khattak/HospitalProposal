@@ -170,6 +170,7 @@ function ProposalDeck({
     Math.round(usd * (money.missing ? 1 : money.rate));
 
   const [index, setIndex] = useState(0);
+  const [ptr, setPtr] = useState({ x: 0.5, y: 0.5 });
   const activeDepts = useMemo(
     () => result.departments.filter((d) => d.enabled !== false && d.beds > 0),
     [result.departments],
@@ -203,6 +204,10 @@ function ProposalDeck({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [index]);
+
+  const parallaxX = (ptr.x - 0.5) * 28;
+  const parallaxY = (ptr.y - 0.5) * 20;
+  const slideShift = (index / Math.max(1, SLIDES.length - 1)) * 24;
 
   const mix = result.departments.map((d) => ({
     name: d.name,
@@ -242,8 +247,49 @@ function ProposalDeck({
   const slide = SLIDES[index];
 
   return (
-    <div className="flex h-dvh flex-col bg-[#f7f6f3] text-stone-900">
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-stone-200/80 bg-white/90 px-4 py-2.5 backdrop-blur-sm sm:px-6">
+    <div
+      className="relative flex h-dvh flex-col overflow-hidden bg-[#f7f6f3] text-stone-900"
+      onMouseMove={(event) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        setPtr({
+          x: (event.clientX - rect.left) / rect.width,
+          y: (event.clientY - rect.top) / rect.height,
+        });
+      }}
+    >
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 overflow-hidden"
+      >
+        <div
+          className="absolute -left-[12%] top-[8%] h-[42vmin] w-[42vmin] will-change-transform"
+          style={{
+            transform: `translate3d(${parallaxX}px, ${parallaxY + slideShift * 0.3}px, 0)`,
+          }}
+        >
+          <div className="display-glow-a h-full w-full rounded-full bg-teal-600/20 blur-3xl" />
+        </div>
+        <div
+          className="absolute -right-[8%] top-[28%] h-[48vmin] w-[48vmin] will-change-transform"
+          style={{
+            transform: `translate3d(${-parallaxX * 0.7}px, ${-parallaxY * 0.6 - slideShift * 0.4}px, 0)`,
+          }}
+        >
+          <div className="display-glow-b h-full w-full rounded-full bg-teal-800/14 blur-3xl" />
+        </div>
+        <div
+          className="absolute bottom-[-10%] left-[28%] h-[38vmin] w-[50vmin] will-change-transform"
+          style={{
+            transform: `translate3d(${parallaxX * 0.45}px, ${parallaxY * 0.35 + slideShift * 0.25}px, 0)`,
+          }}
+        >
+          <div className="display-glow-c h-full w-full rounded-full bg-teal-500/12 blur-3xl" />
+        </div>
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_transparent_40%,_#f7f6f3_78%)]" />
+      </div>
+
+      <header className="relative z-10 flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-stone-200/80 bg-white/80 px-4 py-2.5 backdrop-blur-sm sm:px-6">
         <div className="min-w-0">
           <p className="text-[10px] font-medium tracking-[0.18em] text-teal-800 uppercase">
             Display · {index + 1}/{SLIDES.length}
@@ -268,7 +314,7 @@ function ProposalDeck({
         </div>
       </header>
 
-      <div className="relative min-h-0 flex-1">
+      <div className="relative z-10 min-h-0 flex-1">
         {slide.id === "title" ? (
           <div className="flex h-full flex-col justify-center px-6 sm:px-12 lg:px-20">
             <p className="text-[11px] font-medium tracking-[0.22em] text-teal-800 uppercase">
@@ -859,7 +905,7 @@ function ProposalDeck({
         ) : null}
       </div>
 
-      <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-stone-200/80 bg-white/90 px-4 py-2.5 backdrop-blur-sm sm:px-6">
+      <footer className="relative z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-stone-200/80 bg-white/80 px-4 py-2.5 backdrop-blur-sm sm:px-6">
         <div className="flex flex-wrap items-center gap-1.5">
           {SLIDES.map((s, i) => (
             <button
