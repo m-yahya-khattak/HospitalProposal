@@ -132,6 +132,33 @@
   }
 }
 
+@keyframes kpi-glow-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: translate3d(12%, 18%, 0) scale(1.15);
+    opacity: 1;
+  }
+}
+
+.kpi-strip-glow {
+  animation: kpi-glow-drift 14s ease-in-out infinite;
+}
+
+.kpi-strip-glow-delayed {
+  animation: kpi-glow-drift 18s ease-in-out infinite reverse;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kpi-strip-glow,
+  .kpi-strip-glow-delayed {
+    animation: none;
+  }
+}
+
 @media print {
   header button, a[href="/control"] {
     display: none !important;

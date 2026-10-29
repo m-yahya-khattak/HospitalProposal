@@ -75,7 +75,7 @@ export function Studio({
   const studio = (
     <div className="min-h-dvh bg-[#f7f6f3] text-stone-900">
       <header className="sticky top-0 z-20 border-b bg-white/90 backdrop-blur-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-6">
+        <div className="flex min-h-[3.75rem] flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-6">
           <div>
             <p className="text-xs font-medium text-teal-800">
               {access.kind === "visitor"
@@ -216,14 +216,19 @@ export function Studio({
               onValueChange={(value) => value && setTab(value)}
               className={hydrated ? undefined : "hidden"}
             >
-              <TabsList variant="line" className="w-full justify-start">
-                <TabsTrigger value="capacity">Capacity</TabsTrigger>
-                <TabsTrigger value="items">Items</TabsTrigger>
-                {canRead(permissions, "quotes") ? (
-                  <TabsTrigger value="quotes">Quotes</TabsTrigger>
-                ) : null}
-                <TabsTrigger value="capex">CAPEX</TabsTrigger>
-              </TabsList>
+              <div className="sticky top-[3.75rem] z-10 -mx-4 border-b border-stone-200/80 bg-[#f7f6f3]/95 px-4 pt-1 pb-0.5 backdrop-blur-md lg:-mx-6 lg:px-6">
+                <TabsList
+                  variant="line"
+                  className="h-10 w-full justify-start"
+                >
+                  <TabsTrigger value="capacity">Department Mix</TabsTrigger>
+                  <TabsTrigger value="items">Inventory</TabsTrigger>
+                  {canRead(permissions, "quotes") ? (
+                    <TabsTrigger value="quotes">Quotes</TabsTrigger>
+                  ) : null}
+                  <TabsTrigger value="capex">CAPEX</TabsTrigger>
+                </TabsList>
+              </div>
               <TabsContent value="capacity" className="pt-6">
                 <CapacityTab
                   model={model}

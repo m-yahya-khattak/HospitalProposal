@@ -67,7 +67,7 @@ function SizeTile({
   return (
     <label
       className={cn(
-        "relative block min-w-0 flex-1 overflow-hidden rounded-xl bg-gradient-to-br from-teal-800 to-teal-700 px-3 py-2.5 text-white shadow-[0_8px_24px_rgba(15,118,110,0.32)] ring-1 ring-teal-900/20",
+        "relative flex min-w-0 flex-1 flex-col justify-center overflow-hidden rounded-xl bg-gradient-to-br from-teal-800 to-teal-700 px-3 py-2.5 text-white shadow-[0_8px_24px_rgba(15,118,110,0.32)] ring-1 ring-teal-900/20",
         disabled && "opacity-80",
       )}
     >
@@ -129,10 +129,18 @@ export function KpiStrip({
   const area = Math.round(result.areaSqft);
 
   return (
-    <div className="border-b bg-[#f7f6f3]/80 px-4 py-2.5 lg:px-6">
-      <div className="flex flex-col gap-2.5 lg:flex-row lg:items-start">
+    <div className="kpi-strip relative isolate overflow-hidden border-b bg-[#f7f6f3] px-4 py-2.5 lg:px-6">
+      <div
+        aria-hidden
+        className="kpi-strip-glow pointer-events-none absolute -left-16 top-0 h-40 w-40 rounded-full bg-teal-600/15 blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="kpi-strip-glow-delayed pointer-events-none absolute -right-10 bottom-0 h-36 w-52 rounded-full bg-teal-800/10 blur-3xl"
+      />
+      <div className="relative flex flex-col gap-2.5 lg:flex-row lg:items-stretch">
         {sizeVisible ? (
-          <div className="flex w-full flex-col gap-2.5 lg:w-auto lg:min-w-[20rem] lg:max-w-md lg:flex-row">
+          <div className="flex w-full flex-col gap-2.5 lg:w-44 lg:shrink-0 xl:w-52">
             <SizeTile
               label="Beds"
               value={beds}
@@ -156,7 +164,7 @@ export function KpiStrip({
         <button
           type="button"
           onClick={onSelectTheatres}
-          className="shrink-0 rounded-xl bg-white px-3.5 py-2.5 text-left shadow-sm ring-1 ring-stone-200/80 transition hover:ring-teal-800/25 hover:shadow-md lg:w-36"
+          className="flex shrink-0 flex-col justify-center rounded-xl bg-white/90 px-3.5 py-2.5 text-left shadow-sm ring-1 ring-stone-200/80 backdrop-blur-sm transition hover:ring-teal-800/25 hover:shadow-md lg:w-36"
         >
           <p className="text-[11px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
             Theatres
@@ -169,7 +177,7 @@ export function KpiStrip({
           </p>
         </button>
 
-        <div className="min-w-0 flex-1 rounded-xl bg-white px-3 py-2.5 shadow-sm ring-1 ring-stone-200/80 sm:px-4">
+        <div className="min-w-0 flex-1 rounded-xl bg-white/90 px-3 py-2.5 shadow-sm ring-1 ring-stone-200/80 backdrop-blur-sm sm:px-4">
           <div className="flex flex-wrap items-end gap-x-1 gap-y-2">
             {result.categoryRollup.map((row) => (
               <button
