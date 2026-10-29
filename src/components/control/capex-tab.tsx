@@ -146,7 +146,7 @@ export function CapexTab({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Catalog in CAPEX</TableHead>
+                <TableHead>Medical Tech</TableHead>
                 <TableHead className="text-right">On</TableHead>
               </TableRow>
             </TableHeader>
@@ -231,6 +231,14 @@ export function CapexTab({
               </TableRow>
             </TableHeader>
             <TableBody>
+              <TableRow className="bg-stone-50 hover:bg-stone-50">
+                <TableCell
+                  colSpan={3}
+                  className="text-[11px] font-medium tracking-[0.14em] text-teal-800 uppercase"
+                >
+                  Construction
+                </TableCell>
+              </TableRow>
               {construction.map((line) => (
                 <TableRow key={line.id}>
                   <TableCell>{line.name}</TableCell>
@@ -242,13 +250,21 @@ export function CapexTab({
                   </TableCell>
                 </TableRow>
               ))}
-              <TableRow className="font-medium">
-                <TableCell>Construction</TableCell>
+              <TableRow className="border-t border-stone-200 bg-stone-50/80 font-medium hover:bg-stone-50/80">
+                <TableCell>Construction total</TableCell>
                 <TableCell className="text-right font-mono">
                   {money.format(result.capex.constructionPremium)}
                 </TableCell>
                 <TableCell className="text-right font-mono">
                   {money.format(result.capex.constructionBudget)}
+                </TableCell>
+              </TableRow>
+              <TableRow className="bg-stone-50 hover:bg-stone-50">
+                <TableCell
+                  colSpan={3}
+                  className="text-[11px] font-medium tracking-[0.14em] text-teal-800 uppercase"
+                >
+                  Medical Tech
                 </TableCell>
               </TableRow>
               {catalog.map((line) => (
@@ -262,12 +278,21 @@ export function CapexTab({
                   </TableCell>
                 </TableRow>
               ))}
-              <TableRow className="font-medium">
-                <TableCell>Total</TableCell>
+              <TableRow className="border-t border-stone-200 bg-stone-50/80 font-medium hover:bg-stone-50/80">
+                <TableCell>Medical Tech total</TableCell>
                 <TableCell className="text-right font-mono">
-                  {money.format(result.capex.totalPremium)}
+                  {money.format(result.capex.catalogPremium)}
                 </TableCell>
                 <TableCell className="text-right font-mono">
+                  {money.format(result.capex.catalogBudget)}
+                </TableCell>
+              </TableRow>
+              <TableRow className="border-t-2 border-teal-800/20 bg-teal-50/50 font-medium hover:bg-teal-50/50">
+                <TableCell>Grand total</TableCell>
+                <TableCell className="text-right font-mono text-teal-900">
+                  {money.format(result.capex.totalPremium)}
+                </TableCell>
+                <TableCell className="text-right font-mono text-teal-900">
                   {money.format(result.capex.totalBudget)}
                 </TableCell>
               </TableRow>

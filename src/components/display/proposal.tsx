@@ -386,7 +386,7 @@ function ProposalDeck({
                   {money.format(result.capex.totalPremium)}
                 </p>
                 <p className="mt-2 text-sm text-stone-500">
-                  Catalog {money.format(result.capex.catalogPremium)} ·
+                  Medical Tech {money.format(result.capex.catalogPremium)} ·
                   construction {money.format(result.capex.constructionPremium)}
                 </p>
               </div>
@@ -398,7 +398,7 @@ function ProposalDeck({
                   {money.format(result.capex.totalBudget)}
                 </p>
                 <p className="mt-2 text-sm text-stone-500">
-                  Catalog {money.format(result.capex.catalogBudget)} ·
+                  Medical Tech {money.format(result.capex.catalogBudget)} ·
                   construction {money.format(result.capex.constructionBudget)}
                 </p>
               </div>
@@ -802,29 +802,85 @@ function ProposalDeck({
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-stone-50 hover:bg-stone-50">
-                        <TableHead>Line</TableHead>
-                        <TableHead>Kind</TableHead>
+                        <TableHead>Head</TableHead>
                         <TableHead className="text-right">Premium</TableHead>
                         <TableHead className="text-right">Budget</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {result.capex.lines.map((line) => (
-                        <TableRow key={line.id}>
-                          <TableCell className="font-medium">
-                            {line.name}
-                          </TableCell>
-                          <TableCell className="capitalize text-stone-500">
-                            {line.kind}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums text-teal-800">
-                            {money.format(line.premium)}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums text-stone-500">
-                            {money.format(line.budget)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      <TableRow className="bg-stone-50 hover:bg-stone-50">
+                        <TableCell
+                          colSpan={3}
+                          className="text-[11px] font-medium tracking-[0.14em] text-teal-800 uppercase"
+                        >
+                          Construction
+                        </TableCell>
+                      </TableRow>
+                      {result.capex.lines
+                        .filter((line) => line.kind === "construction")
+                        .map((line) => (
+                          <TableRow key={line.id}>
+                            <TableCell className="font-medium">
+                              {line.name}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums text-teal-800">
+                              {money.format(line.premium)}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums text-stone-500">
+                              {money.format(line.budget)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      <TableRow className="border-t border-stone-200 bg-stone-50/80 font-medium hover:bg-stone-50/80">
+                        <TableCell>Construction total</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {money.format(result.capex.constructionPremium)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {money.format(result.capex.constructionBudget)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow className="bg-stone-50 hover:bg-stone-50">
+                        <TableCell
+                          colSpan={3}
+                          className="text-[11px] font-medium tracking-[0.14em] text-teal-800 uppercase"
+                        >
+                          Medical Tech
+                        </TableCell>
+                      </TableRow>
+                      {result.capex.lines
+                        .filter((line) => line.kind === "catalog")
+                        .map((line) => (
+                          <TableRow key={line.id}>
+                            <TableCell className="font-medium">
+                              {line.name}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums text-teal-800">
+                              {money.format(line.premium)}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums text-stone-500">
+                              {money.format(line.budget)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      <TableRow className="border-t border-stone-200 bg-stone-50/80 font-medium hover:bg-stone-50/80">
+                        <TableCell>Medical Tech total</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {money.format(result.capex.catalogPremium)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {money.format(result.capex.catalogBudget)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow className="border-t-2 border-teal-800/20 bg-teal-50/40 font-medium hover:bg-teal-50/40">
+                        <TableCell>Grand total</TableCell>
+                        <TableCell className="text-right tabular-nums text-teal-900">
+                          {money.format(result.capex.totalPremium)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-teal-900">
+                          {money.format(result.capex.totalBudget)}
+                        </TableCell>
+                      </TableRow>
                     </TableBody>
                   </Table>
                 </div>

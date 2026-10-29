@@ -31,7 +31,7 @@ export const GUEST_MODULE_LABELS: Record<GuestModule, string> = {
   quotePrices: "Quote prices",
   capexBands: "CAPEX area bands",
   capexRates: "CAPEX construction rates",
-  capexCatalog: "CAPEX catalog includes",
+  capexCatalog: "Medical Tech in CAPEX",
 };
 
 export function defaultGuestPermissions(
