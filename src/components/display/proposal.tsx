@@ -115,7 +115,7 @@ function KpiTile({
   label: string;
   value: string;
   hint?: string;
-  /** teal = size/context; budget = stone grey fill (matches chart budgetary bars) */
+  /** teal = premium / size; budget = light grey fill (chart budgetary family) */
   tone?: "teal" | "budget";
 }) {
   return (
@@ -125,7 +125,7 @@ function KpiTile({
         tone === "teal" &&
           "bg-gradient-to-br from-teal-800 to-teal-700 text-white shadow-[0_8px_24px_rgba(15,118,110,0.28)] ring-teal-900/20",
         tone === "budget" &&
-          "bg-gradient-to-br from-stone-600 to-stone-500 text-white shadow-[0_8px_24px_rgba(120,113,108,0.28)] ring-stone-700/20",
+          "bg-gradient-to-br from-stone-200 to-stone-100 text-stone-900 shadow-[0_6px_18px_rgba(168,162,158,0.35)] ring-stone-300/80",
         !tone && "bg-white ring-stone-200",
       )}
     >
@@ -133,7 +133,7 @@ function KpiTile({
         className={cn(
           "text-[11px] font-medium tracking-[0.14em] uppercase",
           tone === "teal" && "text-teal-100/90",
-          tone === "budget" && "text-stone-200/90",
+          tone === "budget" && "text-stone-500",
           !tone && "text-stone-500",
         )}
       >
@@ -142,8 +142,9 @@ function KpiTile({
       <p
         className={cn(
           "mt-2 font-heading text-2xl leading-none tracking-tight tabular-nums sm:text-3xl",
-          tone ? "text-white" : "text-stone-900",
-          !tone && label.toLowerCase().includes("premium") && "text-teal-800",
+          tone === "teal" && "text-white",
+          tone === "budget" && "text-stone-800",
+          !tone && "text-stone-900",
         )}
       >
         {value}
@@ -153,7 +154,7 @@ function KpiTile({
           className={cn(
             "mt-2 text-xs",
             tone === "teal" && "text-teal-100/80",
-            tone === "budget" && "text-stone-200/80",
+            tone === "budget" && "text-stone-500",
             !tone && "text-stone-500",
           )}
         >
@@ -344,6 +345,7 @@ function ProposalDeck({
               <KpiTile
                 label="Premium CAPEX"
                 value={money.format(result.capex.totalPremium)}
+                tone="teal"
               />
               <KpiTile
                 label="Budgetary CAPEX"
@@ -375,6 +377,7 @@ function ProposalDeck({
               <KpiTile
                 label="Premium CAPEX"
                 value={money.format(result.capex.totalPremium)}
+                tone="teal"
               />
               <KpiTile
                 label="Budgetary CAPEX"
@@ -390,26 +393,26 @@ function ProposalDeck({
               />
             </div>
             <div className="mt-6 grid gap-3 md:grid-cols-2">
-              <div className="rounded-2xl bg-white p-5 ring-1 ring-stone-200">
-                <p className="text-xs tracking-wide text-stone-500 uppercase">
+              <div className="rounded-2xl bg-gradient-to-br from-teal-800 to-teal-700 p-5 text-white shadow-[0_8px_24px_rgba(15,118,110,0.28)] ring-1 ring-teal-900/20">
+                <p className="text-xs tracking-wide text-teal-100/90 uppercase">
                   Premium path
                 </p>
-                <p className="mt-2 font-heading text-3xl tabular-nums text-teal-800">
+                <p className="mt-2 font-heading text-3xl tabular-nums">
                   {money.format(result.capex.totalPremium)}
                 </p>
-                <p className="mt-2 text-sm text-stone-500">
+                <p className="mt-2 text-sm text-teal-100/80">
                   Medical Tech {money.format(result.capex.catalogPremium)} ·
                   construction {money.format(result.capex.constructionPremium)}
                 </p>
               </div>
-              <div className="rounded-2xl bg-gradient-to-br from-stone-600 to-stone-500 p-5 text-white shadow-[0_8px_24px_rgba(120,113,108,0.28)] ring-1 ring-stone-700/20">
-                <p className="text-xs tracking-wide text-stone-200/90 uppercase">
+              <div className="rounded-2xl bg-gradient-to-br from-stone-200 to-stone-100 p-5 text-stone-900 shadow-[0_6px_18px_rgba(168,162,158,0.35)] ring-1 ring-stone-300/80">
+                <p className="text-xs tracking-wide text-stone-500 uppercase">
                   Budgetary path
                 </p>
-                <p className="mt-2 font-heading text-3xl tabular-nums">
+                <p className="mt-2 font-heading text-3xl tabular-nums text-stone-800">
                   {money.format(result.capex.totalBudget)}
                 </p>
-                <p className="mt-2 text-sm text-stone-200/80">
+                <p className="mt-2 text-sm text-stone-500">
                   Medical Tech {money.format(result.capex.catalogBudget)} ·
                   construction {money.format(result.capex.constructionBudget)}
                 </p>
@@ -900,6 +903,7 @@ function ProposalDeck({
                   <KpiTile
                     label="Total premium"
                     value={money.format(result.capex.totalPremium)}
+                    tone="teal"
                     hint={
                       model.capex.landExcluded ? "Land excluded" : undefined
                     }
@@ -918,27 +922,27 @@ function ProposalDeck({
         {slide.id === "close" ? (
           <SlideChrome eyebrow="Summary" title="Premium versus budgetary">
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-2xl bg-white p-8 ring-1 ring-stone-200">
-                <p className="text-[11px] font-medium tracking-[0.14em] text-stone-500 uppercase">
+              <div className="rounded-2xl bg-gradient-to-br from-teal-800 to-teal-700 p-8 text-white shadow-[0_12px_40px_rgba(15,118,110,0.3)] ring-1 ring-teal-900/20">
+                <p className="text-[11px] font-medium tracking-[0.14em] text-teal-100/90 uppercase">
                   Premium
                 </p>
-                <p className="mt-3 font-heading text-4xl tabular-nums tracking-tight text-teal-800 sm:text-5xl">
+                <p className="mt-3 font-heading text-4xl tabular-nums tracking-tight sm:text-5xl">
                   {money.format(result.capex.totalPremium)}
                 </p>
-                <p className="mt-4 text-sm text-stone-500">
+                <p className="mt-4 text-sm text-teal-100/85">
                   {formatInt(result.totalBeds)} beds ·{" "}
                   {formatInt(result.theatres.totalRooms)} theatres ·{" "}
                   {formatInt(result.areaSqft)} sq.ft
                 </p>
               </div>
-              <div className="rounded-2xl bg-gradient-to-br from-stone-600 to-stone-500 p-8 text-white shadow-[0_12px_40px_rgba(120,113,108,0.3)] ring-1 ring-stone-700/20">
-                <p className="text-[11px] font-medium tracking-[0.14em] text-stone-200/90 uppercase">
+              <div className="rounded-2xl bg-gradient-to-br from-stone-200 to-stone-100 p-8 text-stone-900 shadow-[0_10px_28px_rgba(168,162,158,0.35)] ring-1 ring-stone-300/80">
+                <p className="text-[11px] font-medium tracking-[0.14em] text-stone-500 uppercase">
                   Budgetary
                 </p>
-                <p className="mt-3 font-heading text-4xl tabular-nums tracking-tight sm:text-5xl">
+                <p className="mt-3 font-heading text-4xl tabular-nums tracking-tight text-stone-800 sm:text-5xl">
                   {money.format(result.capex.totalBudget)}
                 </p>
-                <p className="mt-4 text-sm text-stone-200/80">
+                <p className="mt-4 text-sm text-stone-500">
                   Figures update live from the control studio.
                 </p>
               </div>
