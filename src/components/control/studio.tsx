@@ -222,9 +222,9 @@ export function Studio({
                   className="h-10 w-full justify-start"
                 >
                   <TabsTrigger value="capacity">Department Mix</TabsTrigger>
-                  <TabsTrigger value="items">Inventory</TabsTrigger>
+                  <TabsTrigger value="items">Inventory Management</TabsTrigger>
                   {canRead(permissions, "quotes") ? (
-                    <TabsTrigger value="quotes">Quotes</TabsTrigger>
+                    <TabsTrigger value="quotes">Vendors Catalog</TabsTrigger>
                   ) : null}
                   <TabsTrigger value="capex">CAPEX</TabsTrigger>
                 </TabsList>
