@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -15,65 +16,37 @@ import {
 import { CurrencyProvider, useMoney } from "@/components/currency-provider";
 import { CurrencySwitcher } from "@/components/currency-switcher";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { usePlanningModel } from "@/hooks/use-planning-model";
-import { formatInt, formatPercent } from "@/lib/format";
-import type { Evaluation } from "@/lib/types";
+import { departmentKit } from "@/lib/department-kit";
+import { categoryLabel, formatInt, formatPercent } from "@/lib/format";
+import type { Evaluation, PlanningModel } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 
 const TEAL = "#0f766e";
 const STONE = "#a8a29e";
-const TEAL_SOFT = "#99f6e4";
+const TEAL_SOFT = "#5eead4";
 
-function Section({
-  eyebrow,
-  title,
-  children,
-}: {
-  eyebrow?: string;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="border-t border-stone-200 py-14">
-      {eyebrow ? (
-        <p className="text-[11px] font-medium tracking-[0.2em] text-teal-800 uppercase">
-          {eyebrow}
-        </p>
-      ) : null}
-      <h2 className="mt-2 font-heading text-3xl tracking-tight text-stone-900">
-        {title}
-      </h2>
-      <div className="mt-8">{children}</div>
-    </section>
-  );
-}
-
-function Kpi({
-  label,
-  value,
-  unit,
-  hint,
-}: {
-  label: string;
-  value: string;
-  unit?: string;
-  hint?: string;
-}) {
-  return (
-    <div className="min-w-0 overflow-hidden border-t border-teal-800/20 pt-4 pr-4">
-      <p className="text-xs tracking-wide text-stone-500 uppercase">{label}</p>
-      <p className="mt-2 font-heading text-2xl leading-tight tracking-tight text-stone-900 tabular-nums sm:text-3xl">
-        {value}
-        {unit ? (
-          <span className="ml-1 text-base font-sans text-stone-500">{unit}</span>
-        ) : null}
-      </p>
-      {hint ? (
-        <p className="mt-2 text-xs text-stone-500">{hint}</p>
-      ) : null}
-    </div>
-  );
-}
+const SLIDES = [
+  { id: "title", label: "Title" },
+  { id: "snapshot", label: "Snapshot" },
+  { id: "mix", label: "Departments" },
+  { id: "theatres", label: "Theatres" },
+  { id: "inventory", label: "Inventory" },
+  { id: "kit", label: "Dept kit" },
+  { id: "capex", label: "CAPEX" },
+  { id: "close", label: "Summary" },
+] as const;
 
 function ChartTooltip({
   active,
@@ -88,7 +61,7 @@ function ChartTooltip({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-lg bg-white px-3 py-2 text-xs ring-1 ring-stone-200">
+    <div className="rounded-lg bg-white px-3 py-2 text-xs shadow-md ring-1 ring-stone-200">
       {label ? <p className="mb-1 font-medium">{label}</p> : null}
       {payload.map((p) => (
         <p key={p.name} style={{ color: p.color }}>
@@ -102,34 +75,147 @@ function ChartTooltip({
   );
 }
 
-function ProposalBody({
+function SlideChrome({
+  eyebrow,
+  title,
+  children,
+  className,
+}: {
+  eyebrow: string;
+  title: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex h-full min-h-0 flex-col px-5 py-6 sm:px-8 lg:px-12 lg:py-8",
+        className,
+      )}
+    >
+      <div className="shrink-0">
+        <p className="text-[11px] font-medium tracking-[0.2em] text-teal-800 uppercase">
+          {eyebrow}
+        </p>
+        <h2 className="mt-1.5 font-heading text-3xl tracking-tight text-stone-900 sm:text-4xl">
+          {title}
+        </h2>
+      </div>
+      <div className="mt-5 min-h-0 flex-1 overflow-auto">{children}</div>
+    </div>
+  );
+}
+
+function KpiTile({
+  label,
+  value,
+  hint,
+  accent,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  accent?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-2xl px-4 py-4 shadow-sm ring-1",
+        accent
+          ? "bg-gradient-to-br from-teal-800 to-teal-700 text-white shadow-[0_8px_24px_rgba(15,118,110,0.28)] ring-teal-900/20"
+          : "bg-white ring-stone-200",
+      )}
+    >
+      <p
+        className={cn(
+          "text-[11px] font-medium tracking-[0.14em] uppercase",
+          accent ? "text-teal-100/90" : "text-stone-500",
+        )}
+      >
+        {label}
+      </p>
+      <p
+        className={cn(
+          "mt-2 font-heading text-2xl leading-none tracking-tight tabular-nums sm:text-3xl",
+          accent ? "text-white" : "text-stone-900",
+        )}
+      >
+        {value}
+      </p>
+      {hint ? (
+        <p
+          className={cn(
+            "mt-2 text-xs",
+            accent ? "text-teal-100/80" : "text-stone-500",
+          )}
+        >
+          {hint}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function ProposalDeck({
+  model,
   result,
   live,
-  title,
-  specialtyNames,
-  landExcluded,
 }: {
+  model: PlanningModel;
   result: Evaluation;
   live: boolean;
-  title: string;
-  specialtyNames: string[];
-  landExcluded: boolean;
 }) {
   const money = useMoney();
   const shown = (usd: number) =>
     Math.round(usd * (money.missing ? 1 : money.rate));
+
+  const [index, setIndex] = useState(0);
+  const activeDepts = useMemo(
+    () => result.departments.filter((d) => d.enabled !== false && d.beds > 0),
+    [result.departments],
+  );
+  const [deptId, setDeptId] = useState<string>("");
+
+  useEffect(() => {
+    if (!deptId && activeDepts[0]) setDeptId(activeDepts[0].id);
+  }, [activeDepts, deptId]);
+
+  const go = (next: number) => {
+    setIndex(Math.max(0, Math.min(SLIDES.length - 1, next)));
+  };
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "ArrowRight" || event.key === "PageDown") {
+        event.preventDefault();
+        go(index + 1);
+      } else if (event.key === "ArrowLeft" || event.key === "PageUp") {
+        event.preventDefault();
+        go(index - 1);
+      } else if (event.key === "Home") {
+        event.preventDefault();
+        go(0);
+      } else if (event.key === "End") {
+        event.preventDefault();
+        go(SLIDES.length - 1);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [index]);
+
   const mix = result.departments.map((d) => ({
     name: d.name,
-    beds: d.beds,
+    beds: d.enabled === false ? 0 : d.beds,
     share: d.sharePercent,
+    on: d.enabled !== false,
   }));
+  const pie = mix.filter((d) => d.beds > 0);
+
   const equipment = result.items.filter(
     (i) =>
       i.enabled &&
       (i.category === "ward-equipment" || i.category === "theatre-equipment"),
-  );
-  const furniture = result.items.filter(
-    (i) => i.enabled && i.category === "furniture",
   );
   const costChart = equipment
     .filter((i) => i.premiumCost > 0)
@@ -140,345 +226,683 @@ function ProposalBody({
       Premium: shown(i.premiumCost),
       Budgetary: shown(i.budgetCost),
     }));
+
   const capexChart = result.capex.lines.map((l) => ({
     name: l.name,
     Premium: shown(l.premium),
     Budgetary: shown(l.budget),
   }));
-  const diagnostics = result.items.filter(
-    (i) => i.category === "diagnostic" || i.category === "laboratory",
-  );
-  const selectedDiag = diagnostics.filter((i) => i.enabled);
-  const pie = mix.filter((d) => d.beds > 0);
+
+  const kitLines = deptId ? departmentKit(model, result, deptId) : [];
+  const kitDept = result.departments.find((d) => d.id === deptId);
+  const kitFromDept = kitLines.reduce((s, line) => s + line.fromThisDept, 0);
+
+  const specialtiesOn = model.specialties.filter((s) => s.enabled);
+
+  const slide = SLIDES[index];
 
   return (
-    <div className="min-h-dvh bg-[#f7f6f3] text-stone-900">
-      <div className="w-full px-6 py-10 lg:px-12 lg:py-14">
-        <header className="flex flex-wrap items-start justify-between gap-4">
-          <div>
+    <div className="flex h-dvh flex-col bg-[#f7f6f3] text-stone-900">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-stone-200/80 bg-white/90 px-4 py-2.5 backdrop-blur-sm sm:px-6">
+        <div className="min-w-0">
+          <p className="text-[10px] font-medium tracking-[0.18em] text-teal-800 uppercase">
+            Display · {index + 1}/{SLIDES.length}
+          </p>
+          <p className="truncate font-heading text-lg tracking-tight">
+            {model.title}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <CurrencySwitcher />
+          {live ? (
+            <Badge className="bg-teal-700 text-white">Live</Badge>
+          ) : (
+            <Badge variant="outline">Connecting</Badge>
+          )}
+          <Link
+            href="/control"
+            className="text-xs text-stone-500 hover:text-teal-800"
+          >
+            Studio
+          </Link>
+        </div>
+      </header>
+
+      <div className="relative min-h-0 flex-1">
+        {slide.id === "title" ? (
+          <div className="flex h-full flex-col justify-center px-6 sm:px-12 lg:px-20">
             <p className="text-[11px] font-medium tracking-[0.22em] text-teal-800 uppercase">
               Project planning
             </p>
-            <h1 className="mt-3 font-heading text-5xl leading-[1.05] tracking-tight md:text-6xl">
-              {title}
+            <h1 className="mt-4 max-w-4xl font-heading text-5xl leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
+              {model.title}
             </h1>
-            <p className="mt-4 max-w-xl text-stone-600">
-              Beds, theatres, equipment and capital cost are one model. Change
-              the census and every schedule recalculates.
+            <p className="mt-5 max-w-xl text-base text-stone-600 sm:text-lg">
+              Beds, theatres, inventory and capital cost — one live model. Use
+              the arrows to walk through the plan.
             </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <CurrencySwitcher />
-            <Link
-              href="/"
-              className="text-xs text-stone-500 hover:text-teal-800"
-            >
-              All projects
-            </Link>
-            {live ? (
-              <Badge className="bg-teal-700 text-white">Live</Badge>
-            ) : (
-              <Badge variant="outline">Connecting</Badge>
-            )}
-          </div>
-        </header>
-
-        <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-          <Kpi label="Planned beds" value={formatInt(result.totalBeds)} />
-          <Kpi
-            label="Theatres / procedure"
-            value={formatInt(result.theatres.totalRooms)}
-            hint={`${formatInt(result.theatres.ot)} OT · ${formatInt(result.theatres.minorOt)} minor · ${formatInt(result.theatres.cathLab)} cath · ${formatInt(result.theatres.labourDelivery)} L&D`}
-          />
-          <Kpi
-            label="Indicative area"
-            value={formatInt(result.areaSqft)}
-            unit="sq.ft"
-          />
-          <Kpi
-            label="Premium CAPEX"
-            value={money.format(result.capex.totalPremium)}
-          />
-          <Kpi
-            label="Budgetary CAPEX"
-            value={money.format(result.capex.totalBudget)}
-          />
-        </div>
-
-        <Section eyebrow="Cost scenario" title="Premium versus budgetary">
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="rounded-2xl bg-white p-8 ring-1 ring-stone-200">
-              <p className="text-xs tracking-wide text-stone-500 uppercase">
-                Premium equipment + CAPEX
-              </p>
-              <p className="mt-3 font-heading text-3xl tabular-nums tracking-tight sm:text-4xl">
-                {money.format(result.capex.totalPremium)}
-              </p>
-              <p className="mt-2 text-sm text-stone-500">
-                Catalog {money.format(result.capex.catalogPremium)}
-              </p>
-            </div>
-            <div className="rounded-2xl bg-white p-8 ring-1 ring-stone-200">
-              <p className="text-xs tracking-wide text-stone-500 uppercase">
-                Budgetary equipment + CAPEX
-              </p>
-              <p className="mt-3 font-heading text-3xl tabular-nums tracking-tight sm:text-4xl">
-                {money.format(result.capex.totalBudget)}
-              </p>
-              <p className="mt-2 text-sm text-stone-500">
-                Catalog {money.format(result.capex.catalogBudget)}
-              </p>
+            <div className="mt-10 flex flex-wrap gap-3">
+              <KpiTile
+                label="Beds"
+                value={formatInt(result.totalBeds)}
+                accent
+              />
+              <KpiTile
+                label="Premium CAPEX"
+                value={money.format(result.capex.totalPremium)}
+                accent
+              />
+              <KpiTile
+                label="Area"
+                value={`${formatInt(result.areaSqft)} sq.ft`}
+              />
             </div>
           </div>
-        </Section>
+        ) : null}
 
-        <Section eyebrow="Capacity" title="Bed mix by department">
-          <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
-            <div className="h-80 rounded-2xl bg-white p-4 ring-1 ring-stone-200">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={mix} layout="vertical" margin={{ left: 16, right: 16 }}>
-                  <CartesianGrid stroke="#e7e5e4" horizontal={false} />
-                  <XAxis type="number" tick={{ fill: "#78716c", fontSize: 11 }} />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    width={150}
-                    tick={{ fill: "#44403c", fontSize: 11 }}
-                  />
-                  <Tooltip content={<ChartTooltip />} />
-                  <Bar dataKey="beds" name="Beds" fill={TEAL} radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+        {slide.id === "snapshot" ? (
+          <SlideChrome eyebrow="Overview" title="Plan snapshot">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <KpiTile label="Planned beds" value={formatInt(result.totalBeds)} accent />
+              <KpiTile
+                label="Theatres / procedure"
+                value={formatInt(result.theatres.totalRooms)}
+                hint={`${formatInt(result.theatres.ot)} OT · ${formatInt(result.theatres.minorOt)} minor · ${formatInt(result.theatres.cathLab)} cath · ${formatInt(result.theatres.labourDelivery)} L&D`}
+              />
+              <KpiTile
+                label="Indicative area"
+                value={formatInt(result.areaSqft)}
+                hint="sq.ft"
+              />
+              <KpiTile
+                label="Premium CAPEX"
+                value={money.format(result.capex.totalPremium)}
+                accent
+              />
+              <KpiTile
+                label="Budgetary CAPEX"
+                value={money.format(result.capex.totalBudget)}
+              />
+              <KpiTile
+                label="Inventory units"
+                value={formatInt(
+                  result.categoryRollup.reduce((s, r) => s + r.qty, 0),
+                )}
+                hint={`${result.categoryRollup.length} categories`}
+              />
             </div>
-            <div className="rounded-2xl bg-white p-4 ring-1 ring-stone-200">
-              <div className="h-52">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pie}
-                      dataKey="beds"
-                      nameKey="name"
-                      innerRadius={48}
-                      outerRadius={72}
-                      paddingAngle={1}
+            <div className="mt-6 grid gap-3 md:grid-cols-2">
+              <div className="rounded-2xl bg-white p-5 ring-1 ring-stone-200">
+                <p className="text-xs tracking-wide text-stone-500 uppercase">
+                  Premium path
+                </p>
+                <p className="mt-2 font-heading text-3xl tabular-nums">
+                  {money.format(result.capex.totalPremium)}
+                </p>
+                <p className="mt-2 text-sm text-stone-500">
+                  Catalog {money.format(result.capex.catalogPremium)} ·
+                  construction {money.format(result.capex.constructionPremium)}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-white p-5 ring-1 ring-stone-200">
+                <p className="text-xs tracking-wide text-stone-500 uppercase">
+                  Budgetary path
+                </p>
+                <p className="mt-2 font-heading text-3xl tabular-nums">
+                  {money.format(result.capex.totalBudget)}
+                </p>
+                <p className="mt-2 text-sm text-stone-500">
+                  Catalog {money.format(result.capex.catalogBudget)} ·
+                  construction {money.format(result.capex.constructionBudget)}
+                </p>
+              </div>
+            </div>
+          </SlideChrome>
+        ) : null}
+
+        {slide.id === "mix" ? (
+          <SlideChrome eyebrow="Department mix" title="Beds by department">
+            <div className="grid h-full min-h-[22rem] gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+              <div className="flex min-h-[16rem] flex-col rounded-2xl bg-white p-3 ring-1 ring-stone-200 sm:p-4">
+                <div className="min-h-0 flex-1">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={mix.filter((d) => d.on)}
+                      layout="vertical"
+                      margin={{ left: 8, right: 12, top: 4, bottom: 4 }}
                     >
-                      {pie.map((entry, i) => (
-                        <Cell
-                          key={entry.name}
-                          fill={i % 2 === 0 ? TEAL : TEAL_SOFT}
-                        />
+                      <CartesianGrid stroke="#e7e5e4" horizontal={false} />
+                      <XAxis
+                        type="number"
+                        tick={{ fill: "#78716c", fontSize: 11 }}
+                      />
+                      <YAxis
+                        type="category"
+                        dataKey="name"
+                        width={130}
+                        tick={{ fill: "#44403c", fontSize: 11 }}
+                      />
+                      <Tooltip content={<ChartTooltip />} />
+                      <Bar
+                        dataKey="beds"
+                        name="Beds"
+                        fill={TEAL}
+                        radius={[0, 4, 4, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div className="flex min-h-0 flex-col gap-3">
+                <div className="h-40 shrink-0 rounded-2xl bg-white p-3 ring-1 ring-stone-200 sm:h-44">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={pie}
+                        dataKey="beds"
+                        nameKey="name"
+                        innerRadius={42}
+                        outerRadius={68}
+                        paddingAngle={1}
+                      >
+                        {pie.map((entry, i) => (
+                          <Cell
+                            key={entry.name}
+                            fill={i % 2 === 0 ? TEAL : TEAL_SOFT}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<ChartTooltip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="min-h-0 flex-1 overflow-auto rounded-2xl bg-white ring-1 ring-stone-200">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-stone-50 hover:bg-stone-50">
+                        <TableHead>Department</TableHead>
+                        <TableHead className="text-right">Share</TableHead>
+                        <TableHead className="text-right">Beds</TableHead>
+                        <TableHead className="text-right">Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {result.departments.map((d) => (
+                        <TableRow
+                          key={d.id}
+                          className={d.enabled === false ? "opacity-50" : undefined}
+                        >
+                          <TableCell className="font-medium">{d.name}</TableCell>
+                          <TableCell className="text-right tabular-nums text-stone-500">
+                            {formatPercent(d.sharePercent, 0)}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {formatInt(d.beds)}
+                          </TableCell>
+                          <TableCell className="text-right text-xs">
+                            {d.enabled === false ? "Off" : "On"}
+                          </TableCell>
+                        </TableRow>
                       ))}
-                    </Pie>
-                    <Tooltip content={<ChartTooltip />} />
-                  </PieChart>
-                </ResponsiveContainer>
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
-              <table className="mt-2 w-full text-sm">
-                <tbody>
-                  {mix.map((d) => (
-                    <tr key={d.name} className="border-t border-stone-100">
-                      <td className="py-1.5 pr-2">{d.name}</td>
-                      <td className="py-1.5 text-right tabular-nums text-stone-500">
-                        {formatPercent(d.share, 0)}
-                      </td>
-                      <td className="py-1.5 text-right font-medium tabular-nums">
-                        {d.beds}
-                      </td>
-                    </tr>
-                  ))}
-                  <tr className="border-t border-stone-200 font-medium">
-                    <td className="py-2">Total</td>
-                    <td className="py-2 text-right tabular-nums">
-                      {formatPercent(
-                        mix.reduce((s, d) => s + d.share, 0),
-                        1,
-                      )}
-                    </td>
-                    <td className="py-2 text-right tabular-nums">
-                      {mix.reduce((s, d) => s + d.beds, 0)}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
             </div>
-          </div>
-        </Section>
+          </SlideChrome>
+        ) : null}
 
-        <Section eyebrow="Clinical platform" title="Theatres and furniture">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-2xl bg-white p-6 ring-1 ring-stone-200">
-              <p className="text-xs text-stone-500 uppercase">Operation theatre</p>
-              <p className="mt-2 font-heading text-4xl tabular-nums">
-                {result.theatres.ot}
+        {slide.id === "theatres" ? (
+          <SlideChrome eyebrow="Clinical platform" title="Theatres & specialties">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {(
+                [
+                  ["Operation theatre", result.theatres.ot],
+                  ["Minor theatre", result.theatres.minorOt],
+                  ["Cath lab", result.theatres.cathLab],
+                  ["Labour & delivery", result.theatres.labourDelivery],
+                ] as const
+              ).map(([label, value]) => (
+                <div
+                  key={label}
+                  className="rounded-2xl bg-white p-5 ring-1 ring-stone-200"
+                >
+                  <p className="text-xs tracking-wide text-stone-500 uppercase">
+                    {label}
+                  </p>
+                  <p className="mt-2 font-heading text-4xl tabular-nums text-teal-900">
+                    {formatInt(value)}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-6 rounded-2xl bg-white p-5 ring-1 ring-stone-200">
+              <p className="text-sm font-medium text-stone-900">
+                Specialties on
               </p>
-            </div>
-            <div className="rounded-2xl bg-white p-6 ring-1 ring-stone-200">
-              <p className="text-xs text-stone-500 uppercase">Minor theatre</p>
-              <p className="mt-2 font-heading text-4xl tabular-nums">
-                {result.theatres.minorOt}
-              </p>
-            </div>
-            <div className="rounded-2xl bg-white p-6 ring-1 ring-stone-200">
-              <p className="text-xs text-stone-500 uppercase">Cath lab</p>
-              <p className="mt-2 font-heading text-4xl tabular-nums">
-                {result.theatres.cathLab}
-              </p>
-            </div>
-            <div className="rounded-2xl bg-white p-6 ring-1 ring-stone-200">
-              <p className="text-xs text-stone-500 uppercase">Labour & delivery</p>
-              <p className="mt-2 font-heading text-4xl tabular-nums">
-                {result.theatres.labourDelivery}
-              </p>
-            </div>
-          </div>
-          <div className="mt-6 grid gap-3 sm:grid-cols-4">
-            {furniture.map((item) => (
-              <div
-                key={item.id}
-                className="rounded-xl border border-stone-200 bg-white px-4 py-3"
-              >
-                <p className="text-xs text-stone-500">{item.name}</p>
-                <p className="font-heading text-2xl tabular-nums">{item.qty}</p>
-              </div>
-            ))}
-          </div>
-        </Section>
-
-        <Section eyebrow="Bill of quantities" title="Major medical equipment">
-          <div className="h-80 rounded-2xl bg-white p-4 ring-1 ring-stone-200">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={costChart} margin={{ left: 8, right: 8, top: 8 }}>
-                <CartesianGrid stroke="#e7e5e4" vertical={false} />
-                <XAxis dataKey="name" tick={{ fill: "#78716c", fontSize: 11 }} interval={0} angle={-18} textAnchor="end" height={70} />
-                <YAxis tick={{ fill: "#78716c", fontSize: 11 }} />
-                <Tooltip
-                  content={<ChartTooltip formatValue={money.formatShown} />}
-                />
-                <Bar dataKey="Premium" fill={TEAL} radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Budgetary" fill={STONE} radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="mt-6 overflow-hidden rounded-2xl bg-white ring-1 ring-stone-200">
-            <table className="w-full text-sm">
-              <thead className="bg-stone-50 text-left text-xs tracking-wide text-stone-500 uppercase">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Equipment</th>
-                  <th className="px-4 py-3 text-right font-medium">Qty</th>
-                  <th className="px-4 py-3 text-right font-medium">Premium</th>
-                  <th className="px-4 py-3 text-right font-medium">Budgetary</th>
-                </tr>
-              </thead>
-              <tbody>
-                {equipment.map((item) => (
-                  <tr key={item.id} className="border-t border-stone-100">
-                    <td className="px-4 py-2.5">{item.name}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums">{item.qty}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums">
-                      {item.premiumCost ? money.format(item.premiumCost) : "—"}
-                    </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums">
-                      {item.budgetCost ? money.format(item.budgetCost) : "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="mt-3 text-xs text-stone-500">
-            Quantities round up to whole units. Premium and budgetary are unit
-            price × quantity — the link the planning sheet was missing.
-          </p>
-        </Section>
-
-        <Section eyebrow="Capital" title="Indicative CAPEX">
-          <div className="h-96 rounded-2xl bg-white p-4 ring-1 ring-stone-200">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={capexChart}
-                layout="vertical"
-                margin={{ left: 8, right: 16 }}
-              >
-                <CartesianGrid stroke="#e7e5e4" horizontal={false} />
-                <XAxis type="number" tick={{ fill: "#78716c", fontSize: 11 }} />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  width={160}
-                  tick={{ fill: "#44403c", fontSize: 11 }}
-                />
-                <Tooltip
-                  content={<ChartTooltip formatValue={money.formatShown} />}
-                />
-                <Bar dataKey="Premium" fill={TEAL} radius={[0, 4, 4, 0]} />
-                <Bar dataKey="Budgetary" fill={STONE} radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <p className="mt-4 text-sm text-stone-500">
-            Construction {money.format(result.capex.constructionPremium)} ·
-            catalog {money.format(result.capex.catalogPremium)} · total{" "}
-            {money.format(result.capex.totalPremium)} premium /{" "}
-            {money.format(result.capex.totalBudget)} budgetary.
-            {landExcluded ? " Land excluded." : ""}
-          </p>
-        </Section>
-
-        <Section eyebrow="Supporting units" title="Specialties and diagnostics">
-          <div className="grid gap-8 md:grid-cols-2">
-            <div>
-              <h3 className="text-sm font-medium text-stone-500">
-                Client checklist
-              </h3>
-              <SpecialtyList names={specialtyNames} />
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-stone-500">
-                Radiology & laboratory
-              </h3>
               <p className="mt-1 text-sm text-stone-500">
-                {selectedDiag.length} of {diagnostics.length} selected
+                {specialtiesOn.length} of {model.specialties.length} enabled
               </p>
-              <ul className="mt-3 flex flex-wrap gap-2">
-                {selectedDiag.map((item) => (
+              <ul className="mt-4 flex flex-wrap gap-2">
+                {specialtiesOn.map((s) => (
                   <li
-                    key={item.id}
-                    className="rounded-full bg-white px-3 py-1 text-sm ring-1 ring-stone-200"
+                    key={s.id}
+                    className="rounded-full bg-teal-800 px-3 py-1.5 text-sm text-white"
                   >
-                    {item.name}
+                    {s.name}
                   </li>
                 ))}
+                {specialtiesOn.length === 0 ? (
+                  <li className="text-sm text-stone-500">None selected</li>
+                ) : null}
               </ul>
             </div>
-          </div>
-        </Section>
+          </SlideChrome>
+        ) : null}
 
-        <footer className="mt-8 flex items-center justify-between border-t border-stone-200 pt-6 text-xs text-stone-400">
-          <p>Hospital project planning · figures update with the control studio</p>
-          <Link href="/control" className="hover:text-teal-800">
-            Studio
-          </Link>
-        </footer>
+        {slide.id === "inventory" ? (
+          <SlideChrome eyebrow="Inventory management" title="Catalog by category">
+            <div className="grid h-full min-h-[22rem] gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+              <div className="min-h-[14rem] rounded-2xl bg-white p-3 ring-1 ring-stone-200 sm:p-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={costChart}
+                    margin={{ left: 4, right: 8, top: 8, bottom: 8 }}
+                  >
+                    <CartesianGrid stroke="#e7e5e4" vertical={false} />
+                    <XAxis
+                      dataKey="name"
+                      tick={{ fill: "#78716c", fontSize: 10 }}
+                      interval={0}
+                      angle={-20}
+                      textAnchor="end"
+                      height={64}
+                    />
+                    <YAxis tick={{ fill: "#78716c", fontSize: 11 }} />
+                    <Tooltip
+                      content={
+                        <ChartTooltip formatValue={money.formatShown} />
+                      }
+                    />
+                    <Bar dataKey="Premium" fill={TEAL} radius={[4, 4, 0, 0]} />
+                    <Bar
+                      dataKey="Budgetary"
+                      fill={STONE}
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="min-h-0 overflow-auto rounded-2xl bg-white ring-1 ring-stone-200">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-stone-50 hover:bg-stone-50">
+                      <TableHead>Category</TableHead>
+                      <TableHead className="text-right">Qty</TableHead>
+                      <TableHead className="text-right">Premium</TableHead>
+                      <TableHead className="text-right">Budget</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {result.categoryRollup.map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell className="font-medium">
+                          {categoryLabel(row.id, model.categoryLabels)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {formatInt(row.qty)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-teal-800">
+                          {money.format(row.premium)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-stone-500">
+                          {money.format(row.budget)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="bg-stone-50 font-medium">
+                      <TableCell>Total</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {formatInt(
+                          result.categoryRollup.reduce((s, r) => s + r.qty, 0),
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {money.format(result.bomPremium)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {money.format(result.bomBudget)}
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+                <div className="border-t border-stone-100 px-4 py-3">
+                  <p className="mb-2 text-xs font-medium tracking-wide text-stone-500 uppercase">
+                    Top equipment lines
+                  </p>
+                  <Table>
+                    <TableBody>
+                      {equipment.slice(0, 10).map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell>{item.name}</TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {formatInt(item.qty)}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-teal-800">
+                            {item.premiumCost
+                              ? money.format(item.premiumCost)
+                              : "—"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </div>
+          </SlideChrome>
+        ) : null}
+
+        {slide.id === "kit" ? (
+          <SlideChrome
+            eyebrow="Department kit"
+            title={kitDept ? `${kitDept.name} equipment` : "Pick a department"}
+          >
+            <div className="mb-4 flex flex-wrap gap-2">
+              {activeDepts.map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  onClick={() => setDeptId(d.id)}
+                  className={cn(
+                    "rounded-full px-3 py-1.5 text-sm transition",
+                    deptId === d.id
+                      ? "bg-teal-800 text-white shadow-sm"
+                      : "bg-white text-stone-700 ring-1 ring-stone-200 hover:ring-teal-800/30",
+                  )}
+                >
+                  {d.name}
+                  <span className="ml-1.5 tabular-nums opacity-70">
+                    {formatInt(d.beds)}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <div className="mb-3 flex flex-wrap gap-4 text-sm text-stone-600">
+              <p>
+                <span className="font-medium text-stone-900">
+                  {formatInt(kitLines.length)}
+                </span>{" "}
+                rules
+              </p>
+              <p>
+                From this department ≈{" "}
+                <span className="font-medium tabular-nums text-teal-800">
+                  {formatInt(Math.round(kitFromDept))}
+                </span>{" "}
+                units
+              </p>
+            </div>
+            <div className="max-h-[min(52vh,28rem)] overflow-auto rounded-2xl bg-white ring-1 ring-stone-200">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-stone-50 hover:bg-stone-50">
+                    <TableHead>Item</TableHead>
+                    <TableHead>Rule</TableHead>
+                    <TableHead className="text-right">From dept</TableHead>
+                    <TableHead className="text-right">Item total</TableHead>
+                    <TableHead className="text-right">Premium</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {kitLines.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={5}
+                        className="py-8 text-center text-stone-500"
+                      >
+                        No inventory rules use this department yet.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    kitLines.map((line) => {
+                      const itemResult = result.items.find(
+                        (i) => i.id === line.item.id,
+                      );
+                      const share =
+                        line.itemQty > 0
+                          ? line.fromThisDept / line.itemQty
+                          : 0;
+                      const premiumShare =
+                        (itemResult?.premiumCost ?? 0) * share;
+                      return (
+                        <TableRow
+                          key={`${line.item.id}-${line.formulaIndex}`}
+                        >
+                          <TableCell>
+                            <p className="font-medium">{line.item.name}</p>
+                            <p className="text-xs text-stone-500">
+                              {categoryLabel(
+                                line.item.category,
+                                model.categoryLabels,
+                              )}
+                            </p>
+                          </TableCell>
+                          <TableCell className="max-w-[14rem] text-stone-600">
+                            {line.formulaLabel}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {formatInt(Math.ceil(line.fromThisDept - 1e-10))}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-stone-500">
+                            {formatInt(line.itemQty)}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-teal-800">
+                            {premiumShare
+                              ? money.format(premiumShare)
+                              : "—"}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </SlideChrome>
+        ) : null}
+
+        {slide.id === "capex" ? (
+          <SlideChrome eyebrow="Capital" title="Indicative CAPEX">
+            <div className="grid h-full min-h-[22rem] gap-4 xl:grid-cols-2">
+              <div className="min-h-[14rem] rounded-2xl bg-white p-3 ring-1 ring-stone-200 sm:p-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={capexChart}
+                    layout="vertical"
+                    margin={{ left: 4, right: 12, top: 4, bottom: 4 }}
+                  >
+                    <CartesianGrid stroke="#e7e5e4" horizontal={false} />
+                    <XAxis
+                      type="number"
+                      tick={{ fill: "#78716c", fontSize: 11 }}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      width={140}
+                      tick={{ fill: "#44403c", fontSize: 11 }}
+                    />
+                    <Tooltip
+                      content={
+                        <ChartTooltip formatValue={money.formatShown} />
+                      }
+                    />
+                    <Bar
+                      dataKey="Premium"
+                      fill={TEAL}
+                      radius={[0, 4, 4, 0]}
+                    />
+                    <Bar
+                      dataKey="Budgetary"
+                      fill={STONE}
+                      radius={[0, 4, 4, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex min-h-0 flex-col gap-3">
+                <div className="min-h-0 flex-1 overflow-auto rounded-2xl bg-white ring-1 ring-stone-200">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-stone-50 hover:bg-stone-50">
+                        <TableHead>Line</TableHead>
+                        <TableHead>Kind</TableHead>
+                        <TableHead className="text-right">Premium</TableHead>
+                        <TableHead className="text-right">Budget</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {result.capex.lines.map((line) => (
+                        <TableRow key={line.id}>
+                          <TableCell className="font-medium">
+                            {line.name}
+                          </TableCell>
+                          <TableCell className="capitalize text-stone-500">
+                            {line.kind}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-teal-800">
+                            {money.format(line.premium)}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-stone-500">
+                            {money.format(line.budget)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <KpiTile
+                    label="Total premium"
+                    value={money.format(result.capex.totalPremium)}
+                    accent
+                    hint={
+                      model.capex.landExcluded ? "Land excluded" : undefined
+                    }
+                  />
+                  <KpiTile
+                    label="Total budgetary"
+                    value={money.format(result.capex.totalBudget)}
+                  />
+                </div>
+              </div>
+            </div>
+          </SlideChrome>
+        ) : null}
+
+        {slide.id === "close" ? (
+          <SlideChrome eyebrow="Summary" title="Premium versus budgetary">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="rounded-2xl bg-gradient-to-br from-teal-800 to-teal-700 p-8 text-white shadow-[0_12px_40px_rgba(15,118,110,0.3)]">
+                <p className="text-[11px] font-medium tracking-[0.14em] text-teal-100/90 uppercase">
+                  Premium
+                </p>
+                <p className="mt-3 font-heading text-4xl tabular-nums tracking-tight sm:text-5xl">
+                  {money.format(result.capex.totalPremium)}
+                </p>
+                <p className="mt-4 text-sm text-teal-100/85">
+                  {formatInt(result.totalBeds)} beds ·{" "}
+                  {formatInt(result.theatres.totalRooms)} theatres ·{" "}
+                  {formatInt(result.areaSqft)} sq.ft
+                </p>
+              </div>
+              <div className="rounded-2xl bg-white p-8 ring-1 ring-stone-200">
+                <p className="text-[11px] font-medium tracking-[0.14em] text-stone-500 uppercase">
+                  Budgetary
+                </p>
+                <p className="mt-3 font-heading text-4xl tabular-nums tracking-tight text-stone-900 sm:text-5xl">
+                  {money.format(result.capex.totalBudget)}
+                </p>
+                <p className="mt-4 text-sm text-stone-500">
+                  Figures update live from the control studio.
+                </p>
+              </div>
+            </div>
+            <div className="mt-8 overflow-auto rounded-2xl bg-white ring-1 ring-stone-200">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-stone-50 hover:bg-stone-50">
+                    <TableHead>Category</TableHead>
+                    <TableHead className="text-right">Premium</TableHead>
+                    <TableHead className="text-right">Budget</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {result.categoryRollup.map((row) => (
+                    <TableRow key={row.id}>
+                      <TableCell>
+                        {categoryLabel(row.id, model.categoryLabels)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {money.format(row.premium)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-stone-500">
+                        {money.format(row.budget)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </SlideChrome>
+        ) : null}
       </div>
-    </div>
-  );
-}
 
-function SpecialtyList({ names }: { names: string[] }) {
-  return (
-    <ul className="mt-3 flex flex-wrap gap-2">
-      {names.map((name) => (
-        <li
-          key={name}
-          className="rounded-full bg-teal-800 px-3 py-1 text-sm text-white"
-        >
-          {name}
-        </li>
-      ))}
-      {names.length === 0 ? (
-        <li className="text-sm text-stone-500">No specialty units selected</li>
-      ) : null}
-    </ul>
+      <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-stone-200/80 bg-white/90 px-4 py-2.5 backdrop-blur-sm sm:px-6">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {SLIDES.map((s, i) => (
+            <button
+              key={s.id}
+              type="button"
+              aria-label={s.label}
+              title={s.label}
+              onClick={() => go(i)}
+              className={cn(
+                "h-2 rounded-full transition-all",
+                i === index
+                  ? "w-6 bg-teal-800"
+                  : "w-2 bg-stone-300 hover:bg-stone-400",
+              )}
+            />
+          ))}
+          <span className="ml-2 hidden text-xs text-stone-500 sm:inline">
+            {SLIDES[index].label}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={index === 0}
+            onClick={() => go(index - 1)}
+          >
+            <ChevronLeft data-icon="inline-start" />
+            Back
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            disabled={index === SLIDES.length - 1}
+            onClick={() => go(index + 1)}
+          >
+            Next
+            <ChevronRight data-icon="inline-end" />
+          </Button>
+        </div>
+      </footer>
+    </div>
   );
 }
 
@@ -513,13 +937,7 @@ export function Proposal({ slug }: { slug: string }) {
 
   return (
     <CurrencyProvider fx={model.fx}>
-      <ProposalBody
-        result={result}
-        live={live}
-        title={model.title}
-        specialtyNames={model.specialties.filter((s) => s.enabled).map((s) => s.name)}
-        landExcluded={model.capex.landExcluded}
-      />
+      <ProposalDeck model={model} result={result} live={live} />
     </CurrencyProvider>
   );
 }
