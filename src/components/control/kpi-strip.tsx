@@ -200,15 +200,15 @@ export function KpiStrip({
                 </p>
               </button>
             ))}
-            <div className="min-w-[9rem] flex-1 rounded-xl bg-gradient-to-br from-teal-800 to-teal-700 px-3 py-2.5 text-white shadow-[0_6px_20px_rgba(15,118,110,0.28)] sm:min-w-[10rem]">
-              <p className="text-[11px] font-medium tracking-[0.14em] text-teal-100/90 uppercase">
+            <div className="min-w-[9rem] flex-1 rounded-xl bg-gradient-to-br from-stone-600 to-stone-500 px-3 py-2.5 text-white shadow-[0_6px_20px_rgba(120,113,108,0.28)] ring-1 ring-stone-700/15 sm:min-w-[10rem]">
+              <p className="text-[11px] font-medium tracking-[0.14em] text-stone-200/90 uppercase">
                 Total CAPEX
               </p>
               <p className="mt-1 font-heading text-xl leading-none tracking-tight tabular-nums sm:text-2xl">
-                {money.format(result.capex.totalPremium)}
+                {money.format(result.capex.totalBudget)}
               </p>
-              <p className="mt-2 text-[11px] text-teal-100/80">
-                budget {money.format(result.capex.totalBudget)}
+              <p className="mt-2 text-[11px] text-stone-200/80">
+                premium {money.format(result.capex.totalPremium)}
               </p>
             </div>
           </div>

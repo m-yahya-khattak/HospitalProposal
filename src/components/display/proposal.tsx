@@ -110,26 +110,31 @@ function KpiTile({
   label,
   value,
   hint,
-  accent,
+  tone,
 }: {
   label: string;
   value: string;
   hint?: string;
-  accent?: boolean;
+  /** teal = size/context; budget = stone grey fill (matches chart budgetary bars) */
+  tone?: "teal" | "budget";
 }) {
   return (
     <div
       className={cn(
         "rounded-2xl px-4 py-4 shadow-sm ring-1",
-        accent
-          ? "bg-gradient-to-br from-teal-800 to-teal-700 text-white shadow-[0_8px_24px_rgba(15,118,110,0.28)] ring-teal-900/20"
-          : "bg-white ring-stone-200",
+        tone === "teal" &&
+          "bg-gradient-to-br from-teal-800 to-teal-700 text-white shadow-[0_8px_24px_rgba(15,118,110,0.28)] ring-teal-900/20",
+        tone === "budget" &&
+          "bg-gradient-to-br from-stone-600 to-stone-500 text-white shadow-[0_8px_24px_rgba(120,113,108,0.28)] ring-stone-700/20",
+        !tone && "bg-white ring-stone-200",
       )}
     >
       <p
         className={cn(
           "text-[11px] font-medium tracking-[0.14em] uppercase",
-          accent ? "text-teal-100/90" : "text-stone-500",
+          tone === "teal" && "text-teal-100/90",
+          tone === "budget" && "text-stone-200/90",
+          !tone && "text-stone-500",
         )}
       >
         {label}
@@ -137,7 +142,8 @@ function KpiTile({
       <p
         className={cn(
           "mt-2 font-heading text-2xl leading-none tracking-tight tabular-nums sm:text-3xl",
-          accent ? "text-white" : "text-stone-900",
+          tone ? "text-white" : "text-stone-900",
+          !tone && label.toLowerCase().includes("premium") && "text-teal-800",
         )}
       >
         {value}
@@ -146,7 +152,9 @@ function KpiTile({
         <p
           className={cn(
             "mt-2 text-xs",
-            accent ? "text-teal-100/80" : "text-stone-500",
+            tone === "teal" && "text-teal-100/80",
+            tone === "budget" && "text-stone-200/80",
+            !tone && "text-stone-500",
           )}
         >
           {hint}
@@ -331,16 +339,16 @@ function ProposalDeck({
               <KpiTile
                 label="Beds"
                 value={formatInt(result.totalBeds)}
-                accent
+                tone="teal"
               />
               <KpiTile
                 label="Premium CAPEX"
                 value={money.format(result.capex.totalPremium)}
-                accent
               />
               <KpiTile
-                label="Area"
-                value={`${formatInt(result.areaSqft)} sq.ft`}
+                label="Budgetary CAPEX"
+                value={money.format(result.capex.totalBudget)}
+                tone="budget"
               />
             </div>
           </div>
@@ -349,7 +357,11 @@ function ProposalDeck({
         {slide.id === "snapshot" ? (
           <SlideChrome eyebrow="Overview" title="Plan snapshot">
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              <KpiTile label="Planned beds" value={formatInt(result.totalBeds)} accent />
+              <KpiTile
+                label="Planned beds"
+                value={formatInt(result.totalBeds)}
+                tone="teal"
+              />
               <KpiTile
                 label="Theatres / procedure"
                 value={formatInt(result.theatres.totalRooms)}
@@ -363,11 +375,11 @@ function ProposalDeck({
               <KpiTile
                 label="Premium CAPEX"
                 value={money.format(result.capex.totalPremium)}
-                accent
               />
               <KpiTile
                 label="Budgetary CAPEX"
                 value={money.format(result.capex.totalBudget)}
+                tone="budget"
               />
               <KpiTile
                 label="Inventory units"
@@ -382,7 +394,7 @@ function ProposalDeck({
                 <p className="text-xs tracking-wide text-stone-500 uppercase">
                   Premium path
                 </p>
-                <p className="mt-2 font-heading text-3xl tabular-nums">
+                <p className="mt-2 font-heading text-3xl tabular-nums text-teal-800">
                   {money.format(result.capex.totalPremium)}
                 </p>
                 <p className="mt-2 text-sm text-stone-500">
@@ -390,14 +402,14 @@ function ProposalDeck({
                   construction {money.format(result.capex.constructionPremium)}
                 </p>
               </div>
-              <div className="rounded-2xl bg-white p-5 ring-1 ring-stone-200">
-                <p className="text-xs tracking-wide text-stone-500 uppercase">
+              <div className="rounded-2xl bg-gradient-to-br from-stone-600 to-stone-500 p-5 text-white shadow-[0_8px_24px_rgba(120,113,108,0.28)] ring-1 ring-stone-700/20">
+                <p className="text-xs tracking-wide text-stone-200/90 uppercase">
                   Budgetary path
                 </p>
                 <p className="mt-2 font-heading text-3xl tabular-nums">
                   {money.format(result.capex.totalBudget)}
                 </p>
-                <p className="mt-2 text-sm text-stone-500">
+                <p className="mt-2 text-sm text-stone-200/80">
                   Medical Tech {money.format(result.capex.catalogBudget)} ·
                   construction {money.format(result.capex.constructionBudget)}
                 </p>
@@ -888,7 +900,6 @@ function ProposalDeck({
                   <KpiTile
                     label="Total premium"
                     value={money.format(result.capex.totalPremium)}
-                    accent
                     hint={
                       model.capex.landExcluded ? "Land excluded" : undefined
                     }
@@ -896,6 +907,7 @@ function ProposalDeck({
                   <KpiTile
                     label="Total budgetary"
                     value={money.format(result.capex.totalBudget)}
+                    tone="budget"
                   />
                 </div>
               </div>
@@ -906,27 +918,27 @@ function ProposalDeck({
         {slide.id === "close" ? (
           <SlideChrome eyebrow="Summary" title="Premium versus budgetary">
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-2xl bg-gradient-to-br from-teal-800 to-teal-700 p-8 text-white shadow-[0_12px_40px_rgba(15,118,110,0.3)]">
-                <p className="text-[11px] font-medium tracking-[0.14em] text-teal-100/90 uppercase">
+              <div className="rounded-2xl bg-white p-8 ring-1 ring-stone-200">
+                <p className="text-[11px] font-medium tracking-[0.14em] text-stone-500 uppercase">
                   Premium
                 </p>
-                <p className="mt-3 font-heading text-4xl tabular-nums tracking-tight sm:text-5xl">
+                <p className="mt-3 font-heading text-4xl tabular-nums tracking-tight text-teal-800 sm:text-5xl">
                   {money.format(result.capex.totalPremium)}
                 </p>
-                <p className="mt-4 text-sm text-teal-100/85">
+                <p className="mt-4 text-sm text-stone-500">
                   {formatInt(result.totalBeds)} beds ·{" "}
                   {formatInt(result.theatres.totalRooms)} theatres ·{" "}
                   {formatInt(result.areaSqft)} sq.ft
                 </p>
               </div>
-              <div className="rounded-2xl bg-white p-8 ring-1 ring-stone-200">
-                <p className="text-[11px] font-medium tracking-[0.14em] text-stone-500 uppercase">
+              <div className="rounded-2xl bg-gradient-to-br from-stone-600 to-stone-500 p-8 text-white shadow-[0_12px_40px_rgba(120,113,108,0.3)] ring-1 ring-stone-700/20">
+                <p className="text-[11px] font-medium tracking-[0.14em] text-stone-200/90 uppercase">
                   Budgetary
                 </p>
-                <p className="mt-3 font-heading text-4xl tabular-nums tracking-tight text-stone-900 sm:text-5xl">
+                <p className="mt-3 font-heading text-4xl tabular-nums tracking-tight sm:text-5xl">
                   {money.format(result.capex.totalBudget)}
                 </p>
-                <p className="mt-4 text-sm text-stone-500">
+                <p className="mt-4 text-sm text-stone-200/80">
                   Figures update live from the control studio.
                 </p>
               </div>
