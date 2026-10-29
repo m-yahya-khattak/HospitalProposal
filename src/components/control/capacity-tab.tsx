@@ -9,15 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { canRead, canWrite, type GuestPermissions } from "@/lib/access";
-import {
-  bedsFromArea,
-  scaleHospitalBeds,
-  syncActiveTotalBeds,
-} from "@/lib/engine";
+import { syncActiveTotalBeds } from "@/lib/engine";
 import { slugify } from "@/lib/id";
 import { formatInt, formatPercent } from "@/lib/format";
 import type { Evaluation, PlanningModel } from "@/lib/types";
-import { Minus, Plus, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 
 type Props = {
   model: PlanningModel;
@@ -52,8 +48,6 @@ export function CapacityTab({
   permissions,
   canDelete,
 }: Props) {
-  const sizeWrite = canWrite(permissions, "hospitalSize");
-  const sizeVisible = canRead(permissions, "hospitalSize");
   const deptWrite = canWrite(permissions, "departments");
   const deptRead = canRead(permissions, "departments");
   const specWrite = canWrite(permissions, "specialties");
@@ -79,70 +73,16 @@ export function CapacityTab({
   const [openDeptId, setOpenDeptId] = useState<string | null>(null);
   const [openSpecId, setOpenSpecId] = useState<string | null>(null);
 
-  const setTotalBeds = (total: number) => {
-    if (!sizeWrite) return;
-    patch((m) => {
-      scaleHospitalBeds(m, total);
-    });
-  };
-
-  const setArea = (area: number) => {
-    if (!sizeWrite) return;
-    const beds = bedsFromArea(area, model.capex.areaBands);
-    patch((m) => {
-      scaleHospitalBeds(m, beds);
-    });
-  };
-
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
       <section>
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-medium tracking-tight">Beds</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Department beds add up to the hospital total. Switch a department
-              off to drop its kit from items and pricing. Theatres follow the
-              rules on the right.
-            </p>
-          </div>
-          {sizeVisible ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              disabled={!sizeWrite}
-              onClick={() => setTotalBeds(model.totalBeds - 10)}
-            >
-              <Minus />
-            </Button>
-            <NumberInput
-              className="w-32"
-              value={model.totalBeds}
-              min={10}
-              max={2000}
-              suffix="beds"
-              disabled={!sizeWrite}
-              onChange={setTotalBeds}
-            />
-            <Button
-              variant="outline"
-              size="icon"
-              disabled={!sizeWrite}
-              onClick={() => setTotalBeds(model.totalBeds + 10)}
-            >
-              <Plus />
-            </Button>
-            <NumberInput
-              className="w-40"
-              value={Math.round(result.areaSqft)}
-              min={1}
-              suffix="sq.ft"
-              disabled={!sizeWrite}
-              onChange={setArea}
-            />
-          </div>
-          ) : null}
+        <div>
+          <h2 className="text-xl font-medium tracking-tight">Beds</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Department beds add up to the hospital total (edit size in the
+            header). Switch a department off to drop its kit from items and
+            pricing. Theatres follow the rules on the right.
+          </p>
         </div>
 
         <div className="mt-4 flex items-center justify-between text-sm">

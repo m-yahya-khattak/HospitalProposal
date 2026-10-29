@@ -16,9 +16,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePlanningModel } from "@/hooks/use-planning-model";
 import {
   canRead,
+  canWrite,
   formatAccessUntil,
   ownerPermissions,
 } from "@/lib/access";
+import { bedsFromArea, scaleHospitalBeds } from "@/lib/engine";
 import { createClient } from "@/lib/supabase/client";
 import { ChevronDown, ExternalLink, FolderOpen, LogOut, RotateCcw, UserPlus } from "lucide-react";
 
@@ -156,6 +158,27 @@ export function Studio({
           <KpiStrip
             result={result}
             labels={model.categoryLabels}
+            sizeVisible={canRead(permissions, "hospitalSize")}
+            sizeWrite={canWrite(permissions, "hospitalSize")}
+            onChangeBeds={(total) => {
+              if (!canWrite(permissions, "hospitalSize")) return;
+              setModel((prev) => {
+                const next = structuredClone(prev);
+                scaleHospitalBeds(next, total);
+                return next;
+              });
+            }}
+            onChangeArea={(area) => {
+              if (!canWrite(permissions, "hospitalSize")) return;
+              setModel((prev) => {
+                const next = structuredClone(prev);
+                scaleHospitalBeds(
+                  next,
+                  bedsFromArea(area, next.capex.areaBands),
+                );
+                return next;
+              });
+            }}
             onSelectTheatres={() => setTab("capacity")}
             onSelectCategory={(id) => {
               setItemFilter(id);
